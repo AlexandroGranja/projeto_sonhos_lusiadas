@@ -27,6 +27,7 @@ import {
   Tooltip,
   ResponsiveContainer,
   PieChart as RechartsPieChart,
+  Pie,
   Cell,
   LineChart,
   Line,
@@ -37,6 +38,13 @@ import {
 const DashboardPage = () => {
   const [activeTab, setActiveTab] = useState('overview')
   const [isLoading, setIsLoading] = useState(false)
+  const [data, setData] = useState({
+    overviewStats: null,
+    wordFrequency: null,
+    cantoDistribution: null,
+    dreamTypes: null,
+    recentAnalyses: null
+  })
 
   // Dados simulados para demonstração
   const overviewStats = [
@@ -95,11 +103,32 @@ const DashboardPage = () => {
     { id: 5, title: 'Rimas de Camões', type: 'Lírico', status: 'Erro', confidence: null, date: '2024-06-13' }
   ]
 
-  const refreshData = () => {
+  // Carrega dados iniciais
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  const loadData = async () => {
     setIsLoading(true)
-    setTimeout(() => {
+    try {
+      // Simula carregamento de dados
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      setData({
+        overviewStats: overviewStats,
+        wordFrequency: wordFrequencyData,
+        cantoDistribution: cantoDistributionData,
+        dreamTypes: dreamTypesData,
+        recentAnalyses: recentAnalyses
+      })
+    } catch (error) {
+      console.error('Erro ao carregar dados:', error)
+    } finally {
       setIsLoading(false)
-    }, 1000)
+    }
+  }
+
+  const refreshData = () => {
+    loadData()
   }
 
   const getStatusBadge = (status) => {
@@ -110,6 +139,16 @@ const DashboardPage = () => {
     }
     return <Badge variant={variants[status] || 'outline'}>{status}</Badge>
   }
+
+  const LoadingSkeleton = () => (
+    <div className="animate-pulse">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="bg-slate-200 rounded-lg h-24"></div>
+        ))}
+      </div>
+    </div>
+  )
 
   return (
     <div className="max-w-7xl mx-auto space-y-8">
@@ -142,27 +181,31 @@ const DashboardPage = () => {
         {/* Overview Tab */}
         <TabsContent value="overview" className="space-y-6">
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {overviewStats.map((stat, index) => {
-              const Icon = stat.icon
-              return (
-                <Card key={index} className="hover:shadow-lg transition-shadow">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-slate-600">{stat.title}</p>
-                        <p className="text-2xl font-bold text-slate-900">{stat.value}</p>
-                        <p className={`text-sm ${stat.change.startsWith('+') ? 'text-green-600' : 'text-red-600'}`}>
-                          {stat.change} vs mês anterior
-                        </p>
+          {isLoading ? (
+            <LoadingSkeleton />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {data.overviewStats?.map((stat, index) => {
+                const Icon = stat.icon
+                return (
+                  <Card key={index} className="hover:shadow-lg transition-shadow">
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-slate-600">{stat.title}</p>
+                          <p className="text-2xl font-bold text-slate-900">{stat.value}</p>
+                          <p className={`text-sm ${stat.change.startsWith('+') ? 'text-green-600' : 'text-red-600'}`}>
+                            {stat.change} vs mês anterior
+                          </p>
+                        </div>
+                        <Icon className={`h-8 w-8 ${stat.color}`} />
                       </div>
-                      <Icon className={`h-8 w-8 ${stat.color}`} />
-                    </div>
-                  </CardContent>
-                </Card>
-              )
-            })}
-          </div>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
+          )}
 
           {/* Recent Analyses */}
           <Card>
@@ -298,7 +341,7 @@ const DashboardPage = () => {
                   <YAxis yAxisId="left" />
                   <YAxis yAxisId="right" orientation="right" />
                   <Tooltip />
-                  <Bar yAxisId="left" dataKey="analyses" fill="#3B82F6" />
+                  <Line yAxisId="left" type="monotone" dataKey="analyses" stroke="#3B82F6" strokeWidth={3} />
                   <Line yAxisId="right" type="monotone" dataKey="accuracy" stroke="#10B981" strokeWidth={3} />
                 </LineChart>
               </ResponsiveContainer>

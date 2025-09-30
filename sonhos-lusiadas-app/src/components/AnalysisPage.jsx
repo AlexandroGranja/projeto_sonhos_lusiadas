@@ -29,38 +29,63 @@ const AnalysisPage = () => {
   const [progress, setProgress] = useState(0)
   const [results, setResults] = useState(null)
   const [analysisSteps, setAnalysisSteps] = useState([])
+  const [isDragOver, setIsDragOver] = useState(false)
   const fileInputRef = useRef(null)
   const { toast } = useToast()
 
   const handleFileUpload = (event) => {
     const selectedFile = event.target.files[0]
     if (selectedFile) {
-      // Validar tipo de arquivo
-      const allowedTypes = ['text/plain', 'application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
-      if (!allowedTypes.includes(selectedFile.type) && !selectedFile.name.match(/\.(txt|pdf|docx)$/i)) {
-        toast({
-          title: "Tipo de arquivo não suportado",
-          description: "Por favor, envie arquivos .txt, .pdf ou .docx",
-          variant: "destructive"
-        })
-        return
-      }
+      processFile(selectedFile)
+    }
+  }
 
-      // Validar tamanho (16MB)
-      if (selectedFile.size > 16 * 1024 * 1024) {
-        toast({
-          title: "Arquivo muito grande",
-          description: "O arquivo deve ter no máximo 16MB",
-          variant: "destructive"
-        })
-        return
-      }
-
-      setFile(selectedFile)
+  const processFile = (selectedFile) => {
+    // Validar tipo de arquivo
+    const allowedTypes = ['text/plain', 'application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
+    if (!allowedTypes.includes(selectedFile.type) && !selectedFile.name.match(/\.(txt|pdf|docx)$/i)) {
       toast({
-        title: "Arquivo carregado",
-        description: `${selectedFile.name} foi carregado com sucesso`
+        title: "Tipo de arquivo não suportado",
+        description: "Por favor, envie arquivos .txt, .pdf ou .docx",
+        variant: "destructive"
       })
+      return
+    }
+
+    // Validar tamanho (16MB)
+    if (selectedFile.size > 16 * 1024 * 1024) {
+      toast({
+        title: "Arquivo muito grande",
+        description: "O arquivo deve ter no máximo 16MB",
+        variant: "destructive"
+      })
+      return
+    }
+
+    setFile(selectedFile)
+    toast({
+      title: "Arquivo carregado",
+      description: `${selectedFile.name} foi carregado com sucesso`
+    })
+  }
+
+  const handleDragOver = (event) => {
+    event.preventDefault()
+    setIsDragOver(true)
+  }
+
+  const handleDragLeave = (event) => {
+    event.preventDefault()
+    setIsDragOver(false)
+  }
+
+  const handleDrop = (event) => {
+    event.preventDefault()
+    setIsDragOver(false)
+    
+    const droppedFile = event.dataTransfer.files[0]
+    if (droppedFile) {
+      processFile(droppedFile)
     }
   }
 
@@ -149,7 +174,7 @@ const AnalysisPage = () => {
   const getStepIcon = (status) => {
     switch (status) {
       case 'completed':
-        return <CheckCircle className="h-5 w-5 text-green-600" />
+        return <CheckCircle className="h-5 w-5 text-green-600 animate-pulse" />
       case 'processing':
         return <RefreshCw className="h-5 w-5 text-blue-600 animate-spin" />
       default:
@@ -207,12 +232,23 @@ const AnalysisPage = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div 
-                  className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors cursor-pointer"
+                  className={`border-2 border-dashed rounded-lg p-8 text-center transition-all duration-200 cursor-pointer ${
+                    isDragOver 
+                      ? 'border-blue-400 bg-blue-50 scale-105' 
+                      : 'border-slate-300 hover:border-blue-400 hover:bg-slate-50'
+                  }`}
                   onClick={() => fileInputRef.current?.click()}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
                 >
-                  <FileText className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-                  <p className="text-slate-600 mb-2">
-                    Clique para selecionar ou arraste um arquivo aqui
+                  <FileText className={`h-12 w-12 mx-auto mb-4 transition-colors ${
+                    isDragOver ? 'text-blue-500' : 'text-slate-400'
+                  }`} />
+                  <p className={`mb-2 transition-colors ${
+                    isDragOver ? 'text-blue-600 font-medium' : 'text-slate-600'
+                  }`}>
+                    {isDragOver ? 'Solte o arquivo aqui' : 'Clique para selecionar ou arraste um arquivo aqui'}
                   </p>
                   <p className="text-sm text-slate-500">
                     Formatos suportados: TXT, PDF, DOCX

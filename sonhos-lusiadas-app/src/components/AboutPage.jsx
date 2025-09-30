@@ -129,7 +129,11 @@ const AboutPage = () => {
           {features.map((feature, index) => {
             const Icon = feature.icon
             return (
-              <Card key={index} className="hover:shadow-lg transition-shadow">
+              <Card 
+                key={index} 
+                className="hover:shadow-lg transition-all duration-300 animate-fade-in-up"
+                style={{ animationDelay: `${index * 0.1}s` }}
+              >
                 <CardHeader>
                   <CardTitle className="flex items-center gap-3">
                     <div className="p-2 bg-blue-100 rounded-lg">

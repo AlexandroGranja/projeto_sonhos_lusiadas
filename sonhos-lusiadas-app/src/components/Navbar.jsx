@@ -26,7 +26,7 @@ const Navbar = () => {
   const isActive = (path) => location.pathname === path
 
   return (
-    <nav className="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-50">
+    <nav className="bg-white/90 backdrop-blur-md border-b border-slate-200 sticky top-0 z-50 shadow-sm">
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
@@ -40,6 +40,11 @@ const Navbar = () => {
                 Sonhos Lusíadas
               </h1>
               <p className="text-xs text-slate-500 -mt-1">Análise Literária com IA</p>
+            </div>
+            <div className="sm:hidden">
+              <h1 className="text-lg font-bold text-slate-800 group-hover:text-blue-700 transition-colors">
+                Sonhos Lusíadas
+              </h1>
             </div>
           </Link>
 

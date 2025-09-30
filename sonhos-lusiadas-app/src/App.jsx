@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { Toaster } from '@/components/ui/toaster'
 import Navbar from '@/components/Navbar'
@@ -11,7 +10,7 @@ import './App.css'
 function App() {
   return (
     <Router>
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50">
         <Navbar />
         <main className="container mx-auto px-4 py-8">
           <Routes>

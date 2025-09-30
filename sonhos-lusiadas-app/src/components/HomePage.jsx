@@ -75,15 +75,15 @@ const HomePage = () => {
       <section className="text-center space-y-8 py-12">
         <div className="space-y-4">
           <div className="flex justify-center">
-            <div className="relative">
+            <div className="relative animate-bounce">
               <BookOpen className="h-16 w-16 text-blue-600" />
               <Sparkles className="h-8 w-8 text-amber-500 absolute -top-2 -right-2 animate-pulse" />
             </div>
           </div>
-          <h1 className="text-4xl md:text-6xl font-bold text-slate-800 leading-tight">
-            Sonhos em <span className="text-blue-600">Os Lusíadas</span>
+          <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold text-slate-800 leading-tight">
+            Sonhos em <span className="text-blue-600 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Os Lusíadas</span>
           </h1>
-          <p className="text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed">
+          <p className="text-lg sm:text-xl text-slate-600 max-w-3xl mx-auto leading-relaxed px-4">
             Uma ferramenta revolucionária para análise literária que combina inteligência artificial 
             avançada com técnicas de processamento de linguagem natural para explorar temas e 
             padrões em textos clássicos.
@@ -118,7 +118,11 @@ const HomePage = () => {
           {features.map((feature, index) => {
             const Icon = feature.icon
             return (
-              <Card key={index} className="group hover:shadow-lg transition-all duration-300 border-0 bg-white/60 backdrop-blur-sm">
+              <Card 
+                key={index} 
+                className="group hover:shadow-lg transition-all duration-300 border-0 bg-white/60 backdrop-blur-sm animate-fade-in-up"
+                style={{ animationDelay: `${index * 0.1}s` }}
+              >
                 <CardHeader className="text-center">
                   <div className="mx-auto mb-4 p-3 rounded-full bg-slate-50 group-hover:bg-slate-100 transition-colors">
                     <Icon className={`h-8 w-8 ${feature.color}`} />
