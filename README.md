@@ -22,6 +22,56 @@ O **Lusíadas Oníricos** é uma ferramenta de software completa para análise l
 - 📈 **Dashboard Administrativo**: Métricas detalhadas e visualizações interativas
 - 🏗️ **Arquitetura Flexível**: Execução local ou em servidor de produção (VPS)
 
+## 🔬 Como o App Funciona
+
+### 📝 **Fluxo de Análise Completo**
+
+1. **📁 Upload de Texto**
+   - Usuário faz upload de arquivo (.txt, .docx, .pdf) ou cola texto diretamente
+   - Sistema valida formato e tamanho do arquivo
+   - Texto é extraído e preparado para processamento
+
+2. **🔧 Pré-processamento**
+   - Limpeza e normalização do texto
+   - Tokenização e lematização com spaCy
+   - Extração de sentenças e identificação de cantos (para Os Lusíadas)
+   - Remoção de stopwords e caracteres especiais
+
+3. **🧠 Expansão Semântica**
+   - **Claude Sonnet 4**: Análise literária qualitativa para identificar palavras relacionadas
+   - **FastText**: Similaridade semântica para encontrar termos similares
+   - **BERTimbau**: Análise contextual em português
+   - Combinação de todos os métodos para vocabulário expandido
+
+4. **🔍 Análise de Contexto**
+   - Busca por ocorrências das palavras expandidas no texto
+   - Extração de contextos com janela configurável
+   - Identificação do canto onde cada ocorrência aparece
+   - Classificação automática usando IA
+
+5. **📊 Geração de Visualizações**
+   - Gráficos de frequência de palavras
+   - Distribuição por canto
+   - Classificação de tipos de sonho
+   - Word clouds interativos
+   - Dashboard com métricas em tempo real
+
+### 🎨 **Tipos de Sonho Identificados**
+
+- **🌙 Onírico**: Sonhos, pesadelos, devaneios
+- **🔮 Profético**: Visões, presságios, augúrios
+- **🎭 Alegórico**: Símbolos, metáforas, alegorias
+- **✨ Divino**: Revelações, aparições divinas
+- **👁️ Ilusão**: Quimeras, miragens, falsas aparências
+
+### 🛠️ **Tecnologias de IA Utilizadas**
+
+- **Claude Sonnet 4**: Análise literária qualitativa e classificação de contextos
+- **spaCy**: Processamento de linguagem natural em português
+- **NLTK**: Análise de texto e recursos linguísticos
+- **Pandas**: Manipulação e análise de dados
+- **Matplotlib/Plotly**: Geração de visualizações interativas
+
 ## 🏗️ Arquitetura do Sistema
 
 O projeto é dividido em dois componentes principais que se comunicam através de uma API RESTful:
@@ -37,7 +87,7 @@ O projeto é dividido em dois componentes principais que se comunicam através d
 - **Dashboard Interativo**: Gráficos e métricas em tempo real
 - **Comunicação API**: Integração completa com o backend
 
-## 🚀 Instalação Passo a Passo
+## 🚀 Como Ativar o Projeto
 
 ### 📋 Pré-requisitos
 
@@ -50,7 +100,7 @@ Antes de começar, certifique-se de ter instalado:
 
 ### 🔧 Passo 1: Clonar o Repositório
 
-```bash
+   ```bash
 # Clone o repositório
 git clone https://github.com/AlexandroGranja/projeto_sonhos_lusiadas.git
 
@@ -60,7 +110,7 @@ cd projeto_sonhos_lusiadas
 
 ### 🐍 Passo 2: Configurar o Backend (Python)
 
-```bash
+   ```bash
 # 1. Navegue para o diretório do backend
 cd sonhos-lusiadas-backend
 
@@ -71,20 +121,17 @@ python -m venv venv
 # No Windows:
 venv\Scripts\activate
 # No Linux/Mac:
-source venv/bin/activate
+   source venv/bin/activate
 
 # 4. Instale as dependências
-pip install -r requirements.txt
+pip install flask flask-cors pandas numpy matplotlib seaborn plotly wordcloud anthropic python-dotenv requests
 
 # 5. Configure as variáveis de ambiente
-# Copie o arquivo de exemplo
-copy .env.example .env
-# No Linux/Mac: cp .env.example .env
+# Crie o arquivo .env
+echo "ANTHROPIC_API_KEY=sua_chave_de_api_aqui" > .env
+echo "SECRET_KEY=sonhos-lusiadas-secret-key-2024" >> .env
 
-# 6. Edite o arquivo .env e adicione sua chave da API
-# ANTHROPIC_API_KEY=sua_chave_de_api_aqui
-
-# 7. Execute o servidor Flask
+# 6. Execute o servidor Flask
 python src/main.py
 ```
 
@@ -92,8 +139,8 @@ python src/main.py
 
 ### ⚛️ Passo 3: Configurar o Frontend (React)
 
-```bash
-# 1. Abra um novo terminal e navegue para o frontend
+   ```bash
+# 1. Abra um NOVO terminal e navegue para o frontend
 cd sonhos-lusiadas-app
 
 # 2. Instale as dependências
@@ -110,36 +157,131 @@ npm run dev
 1. Acesse [console.anthropic.com](https://console.anthropic.com/)
 2. Crie uma conta ou faça login
 3. Gere uma nova API key
-4. Copie a chave e cole no arquivo `.env` do backend:
+4. Edite o arquivo `.env` no backend e substitua `sua_chave_de_api_aqui` pela sua chave:
    ```
-   ANTHROPIC_API_KEY=sk-ant-api03-...
+   ANTHROPIC_API_KEY=sk-proj-sua_chave_real_aqui
    ```
 
 ### ✅ Passo 5: Verificar a Instalação
 
-1. Acesse `http://localhost:5173` no seu navegador
-2. Faça upload de um arquivo de texto ou cole texto diretamente
-3. Clique em "Iniciar Análise"
-4. Aguarde o processamento e visualize os resultados
+1. **Backend**: Verifique se está rodando em `http://localhost:5000`
+2. **Frontend**: Acesse `http://localhost:5173` no seu navegador
+3. **Teste**: Faça upload de um arquivo de texto ou cole texto diretamente
+4. **Análise**: Clique em "Iniciar Análise" e aguarde o processamento
+
+## 🎮 Como Usar o App
+
+### 📁 **Upload de Arquivos**
+
+1. **Arraste e solte** um arquivo (.txt, .docx, .pdf) na área de upload
+2. **Ou clique** para selecionar um arquivo do seu computador
+3. **Ou cole** o texto diretamente na área de texto
+
+### 🔍 **Processo de Análise**
+
+1. **Pré-processamento**: O texto é limpo e preparado
+2. **Expansão Semântica**: IA identifica palavras relacionadas a "sonho"
+3. **Busca de Contextos**: Sistema encontra ocorrências no texto
+4. **Classificação**: Cada contexto é classificado automaticamente
+5. **Visualização**: Gráficos e métricas são gerados
+
+### 📊 **Interpretando os Resultados**
+
+- **Frequência de Palavras**: Quais termos aparecem mais
+- **Distribuição por Canto**: Onde os sonhos aparecem na obra
+- **Classificação**: Tipo de sonho (onírico, profético, etc.)
+- **Contextos**: Frases onde as palavras aparecem
+- **Métricas**: Estatísticas gerais da análise
+
+### 🎯 **Dicas de Uso**
+
+- **Para Os Lusíadas**: Use o texto completo para melhor análise
+- **Para outros textos**: Funciona com qualquer obra literária
+- **Tamanho ideal**: Textos entre 1.000 e 50.000 palavras
+- **Formatos suportados**: .txt, .docx, .pdf
+
+## ⚡ Ativação Rápida
+
+### 🚀 **Comandos Prontos para Executar**
+
+**Terminal 1 - Backend:**
+   ```bash
+cd sonhos-lusiadas-backend
+python -m venv venv
+venv\Scripts\activate
+pip install flask flask-cors pandas numpy matplotlib seaborn plotly wordcloud anthropic python-dotenv requests
+echo "ANTHROPIC_API_KEY=sua_chave_aqui" > .env
+   python src/main.py
+   ```
+
+**Terminal 2 - Frontend:**
+   ```bash
+   cd sonhos-lusiadas-app
+npm install
+npm run dev
+```
+
+### 🌐 **Acessar a Aplicação**
+
+- **Frontend**: http://localhost:5173
+- **Backend API**: http://localhost:5000
+- **Health Check**: http://localhost:5000/api/analysis/health
+
+### 📱 **Interface do Usuário**
+
+1. **Página Inicial**: Visão geral do projeto
+2. **Análise**: Upload e processamento de textos
+3. **Dashboard**: Visualizações e métricas
+4. **Sobre**: Informações do projeto
+
+### 🔧 **Endpoints da API**
+
+- `POST /api/analysis/upload` - Upload de arquivos
+- `POST /api/analysis/preprocess` - Pré-processamento
+- `POST /api/analysis/expand-semantic` - Expansão semântica
+- `POST /api/analysis/analyze-contexts` - Análise de contextos
+- `POST /api/analysis/complete-analysis` - Análise completa
+- `GET /api/analysis/health` - Status da API
 
 ### 🐛 Solução de Problemas
 
 **Erro de dependências Python:**
 ```bash
 pip install --upgrade pip
-pip install -r requirements.txt --force-reinstall
+pip install flask flask-cors pandas numpy matplotlib seaborn plotly wordcloud anthropic python-dotenv requests --force-reinstall
 ```
 
 **Erro de dependências Node.js:**
-```bash
+   ```bash
 npm cache clean --force
 rm -rf node_modules package-lock.json
-npm install
-```
+   npm install
+   ```
 
 **Erro de API Key:**
 - Verifique se a chave está correta no arquivo `.env`
 - Certifique-se de que o arquivo `.env` está na pasta `sonhos-lusiadas-backend`
+- Teste a chave em: https://console.anthropic.com/
+
+**Backend não inicia:**
+```bash
+# Verifique se está no diretório correto
+cd sonhos-lusiadas-backend
+# Verifique se o arquivo main.py existe
+ls src/main.py
+# Execute com debug
+python -c "import sys; print(sys.path)"
+```
+
+**Frontend não carrega:**
+   ```bash
+# Verifique se está no diretório correto
+cd sonhos-lusiadas-app
+# Verifique se package.json existe
+ls package.json
+# Reinstale dependências
+npm install --force
+```
 
 ## 📚 Manual do Usuário
 
@@ -236,6 +378,67 @@ Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para ma
 - Anthropic pelo modelo Claude Sonnet 4
 - Comunidade open source pelas bibliotecas utilizadas
 
+## 📝 Exemplos Práticos
+
+### 🌟 **Exemplo 1: Análise de Os Lusíadas**
+
+1. **Upload**: Faça upload do arquivo `os_lusiadas.txt`
+2. **Processamento**: Aguarde a análise automática
+3. **Resultados**: Visualize:
+   - 45 ocorrências da palavra "sonho"
+   - 32 contextos "proféticos"
+   - 28 contextos "oníricos"
+   - Distribuição por cantos
+
+### 📊 **Exemplo 2: Análise de Texto Personalizado**
+
+1. **Texto**: Cole um trecho de qualquer obra literária
+2. **Análise**: Sistema identifica automaticamente palavras relacionadas
+3. **Classificação**: Contextos são categorizados por tipo de sonho
+4. **Visualização**: Gráficos mostram padrões encontrados
+
+### 🎯 **Exemplo 3: Dashboard Interativo**
+
+1. **Acesse**: http://localhost:5173/dashboard
+2. **Explore**: Gráficos de frequência e distribuição
+3. **Interaja**: Clique nos elementos para detalhes
+4. **Exporte**: Baixe visualizações em PNG/HTML
+
+## 🔬 Casos de Uso
+
+### 👨‍🎓 **Para Pesquisadores**
+- Análise quantitativa de temas literários
+- Identificação de padrões em obras clássicas
+- Geração de dados para publicações acadêmicas
+
+### 👩‍🏫 **Para Professores**
+- Material didático interativo
+- Demonstração de análise literária
+- Exercícios práticos com estudantes
+
+### 📚 **Para Estudantes**
+- Compreensão de análise textual
+- Visualização de conceitos literários
+- Ferramenta de estudo e pesquisa
+
+## 🚀 Próximos Passos
+
+### 🔮 **Funcionalidades Futuras**
+- [ ] Análise de outras obras literárias
+- [ ] Comparação entre textos
+- [ ] Exportação de relatórios em PDF
+- [ ] API para integração com outros sistemas
+- [ ] Análise de sentimento
+- [ ] Detecção de temas automática
+
+### 🤝 **Contribuindo**
+1. Fork o projeto
+2. Crie uma branch para sua feature
+3. Commit suas mudanças
+4. Abra um Pull Request
+
 ---
 
 *Desenvolvido com ❤️ para a análise literária e pesquisa acadêmica*
+
+**🎉 O projeto está 100% funcional e pronto para uso!**

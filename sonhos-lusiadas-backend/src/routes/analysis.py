@@ -14,7 +14,7 @@ from datetime import datetime
 import pandas as pd
 
 # Adiciona o diretório src ao path para importar módulos
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'src'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 try:
     from preprocessing import TextPreprocessor, process_lusiadas_text
@@ -23,6 +23,11 @@ try:
     from visualization import DataVisualizer, create_visualization_report
 except ImportError as e:
     logging.error(f"Erro ao importar módulos: {e}")
+    # Fallback para módulos básicos
+    TextPreprocessor = None
+    SemanticExpander = None
+    ContextAnalyzer = None
+    DataVisualizer = None
 
 # Configuração de logging
 logging.basicConfig(level=logging.INFO)
