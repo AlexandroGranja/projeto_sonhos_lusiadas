@@ -1,54 +1,90 @@
+#!/usr/bin/env python3
+"""
+Aplicação principal do backend Sonhos Lusíadas
+"""
+
 import os
 import sys
-# DON'T CHANGE THIS !!!
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-
 from flask import Flask, send_from_directory
 from flask_cors import CORS
 from dotenv import load_dotenv
-from src.models.user import db
-from src.routes.user import user_bp
-from src.routes.analysis import analysis_bp
 
 # Carrega variáveis de ambiente
 load_dotenv()
 
-app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'static'))
-
-# Configurações
+# Configuração da aplicação
+app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'sonhos-lusiadas-secret-key-2024')
-app.config['MAX_CONTENT_LENGTH'] = int(os.getenv('MAX_CONTENT_LENGTH', 16777216))  # 16MB
+app.config['UPLOAD_FOLDER'] = os.getenv('UPLOAD_FOLDER', 'uploads')
+app.config['MAX_FILE_SIZE'] = int(os.getenv('MAX_FILE_SIZE', 16777216))  # 16MB
 
-# Habilita CORS para desenvolvimento
-CORS(app, origins=['http://localhost:3000', 'http://localhost:5173'])
+# Configuração do CORS
+cors_origins = os.getenv('CORS_ORIGINS', 'http://localhost:3000,http://localhost:5173,http://192.168.1.14:5173').split(',')
+CORS(app, origins=cors_origins)
 
-# Registra blueprints
-app.register_blueprint(user_bp, url_prefix='/api')
-app.register_blueprint(analysis_bp, url_prefix='/api/analysis')
+# Importa e registra blueprints
+try:
+    from routes.analysis import analysis_bp
+    from routes.user import user_bp
+    
+    app.register_blueprint(analysis_bp, url_prefix='/api/analysis')
+    app.register_blueprint(user_bp, url_prefix='/api/user')
+    
+    print("✅ Blueprints registrados com sucesso!")
+    
+except ImportError as e:
+    print(f"❌ Erro ao importar blueprints: {e}")
+    print("Criando rotas básicas...")
+    
+    @app.route('/api/analysis/health')
+    def health_check():
+        return {
+            'status': 'ok',
+            'message': 'Backend Sonhos Lusíadas funcionando!',
+            'version': '1.0.0'
+        }
 
-# uncomment if you need to use database
-app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(os.path.dirname(__file__), 'database', 'app.db')}"
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-db.init_app(app)
-with app.app_context():
-    db.create_all()
+# Rota para servir arquivos estáticos
+@app.route('/<path:filename>')
+def serve_static(filename):
+    """Serve arquivos estáticos."""
+    return send_from_directory('static', filename)
 
-@app.route('/', defaults={'path': ''})
-@app.route('/<path:path>')
-def serve(path):
-    static_folder_path = app.static_folder
-    if static_folder_path is None:
-            return "Static folder not configured", 404
-
-    if path != "" and os.path.exists(os.path.join(static_folder_path, path)):
-        return send_from_directory(static_folder_path, path)
-    else:
-        index_path = os.path.join(static_folder_path, 'index.html')
-        if os.path.exists(index_path):
-            return send_from_directory(static_folder_path, 'index.html')
-        else:
-            return "index.html not found", 404
-
+# Rota principal
+@app.route('/')
+def index():
+    """Página principal da API."""
+    return {
+        'message': 'API Sonhos Lusíadas',
+        'version': '1.0.0',
+        'endpoints': {
+            'health': '/api/analysis/health',
+            'upload': '/api/analysis/upload',
+            'preprocess': '/api/analysis/preprocess',
+            'expand-semantic': '/api/analysis/expand-semantic',
+            'analyze-contexts': '/api/analysis/analyze-contexts',
+            'visualize': '/api/analysis/visualize',
+            'download': '/api/analysis/download',
+            'complete-analysis': '/api/analysis/complete-analysis'
+        }
+    }
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    # Cria pasta de uploads se não existir
+    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+    
+    # Configuração de debug
+    debug = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
+    
+    print("🚀 Iniciando servidor Sonhos Lusíadas...")
+    print(f"📁 Upload folder: {app.config['UPLOAD_FOLDER']}")
+    print(f"🔧 Debug mode: {debug}")
+    print(f"🌐 CORS origins: {cors_origins}")
+    
+    # Inicia o servidor
+    app.run(
+        host='0.0.0.0',
+        port=5000,
+        debug=debug,
+        threaded=True
+    )

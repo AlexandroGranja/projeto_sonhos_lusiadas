@@ -5,7 +5,7 @@
 
 const API_BASE_URL = process.env.NODE_ENV === 'production' 
   ? '/api' 
-  : 'http://localhost:5000/api'
+  : 'http://192.168.1.14:5000/api'
 
 class ApiService {
   constructor() {
@@ -115,7 +115,7 @@ class ApiService {
    * Gera visualizações
    */
   async generateVisualizations(data) {
-    return this.request('/analysis/generate-visualizations', {
+    return this.request('/analysis/visualize', {
       method: 'POST',
       body: JSON.stringify(data),
     })

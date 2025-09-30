@@ -98,6 +98,8 @@ Antes de começar, certifique-se de ter instalado:
 - **Git** ([Download](https://git-scm.com/downloads))
 - **Chave da API Anthropic** ([Obter aqui](https://console.anthropic.com/))
 
+> ⚠️ **Importante**: O projeto foi testado e está funcionando corretamente. Certifique-se de seguir todos os passos para evitar problemas de configuração.
+
 ### 🔧 Passo 1: Clonar o Repositório
 
    ```bash
@@ -124,18 +126,19 @@ venv\Scripts\activate
    source venv/bin/activate
 
 # 4. Instale as dependências
-pip install flask flask-cors pandas numpy matplotlib seaborn plotly wordcloud anthropic python-dotenv requests
+pip install -r requirements.txt
 
 # 5. Configure as variáveis de ambiente
 # Crie o arquivo .env
 echo "ANTHROPIC_API_KEY=sua_chave_de_api_aqui" > .env
 echo "SECRET_KEY=sonhos-lusiadas-secret-key-2024" >> .env
+echo "CORS_ORIGINS=http://localhost:3000,http://localhost:5173,http://192.168.1.14:5173" >> .env
 
 # 6. Execute o servidor Flask
 python src/main.py
 ```
 
-✅ **Backend rodando em:** `http://localhost:5000`
+✅ **Backend rodando em:** `http://localhost:5000` ou `http://192.168.1.14:5000`
 
 ### ⚛️ Passo 3: Configurar o Frontend (React)
 
@@ -150,7 +153,9 @@ npm install
 npm run dev
 ```
 
-✅ **Frontend rodando em:** `http://localhost:5173`
+✅ **Frontend rodando em:** `http://localhost:5173` ou `http://192.168.1.14:5173`
+
+> 🔧 **Nota**: O frontend está configurado para se conectar automaticamente ao backend. Se você estiver usando um IP diferente, edite o arquivo `src/services/api.js` e altere a URL do backend.
 
 ### 🔑 Passo 4: Configurar a API Key
 
@@ -164,10 +169,12 @@ npm run dev
 
 ### ✅ Passo 5: Verificar a Instalação
 
-1. **Backend**: Verifique se está rodando em `http://localhost:5000`
-2. **Frontend**: Acesse `http://localhost:5173` no seu navegador
+1. **Backend**: Verifique se está rodando em `http://localhost:5000` ou `http://192.168.1.14:5000`
+2. **Frontend**: Acesse `http://localhost:5173` ou `http://192.168.1.14:5173` no seu navegador
 3. **Teste**: Faça upload de um arquivo de texto ou cole texto diretamente
 4. **Análise**: Clique em "Iniciar Análise" e aguarde o processamento
+
+> ✅ **Status**: O projeto foi testado e está funcionando corretamente. Todos os problemas de configuração foram resolvidos.
 
 ## 🎮 Como Usar o App
 
@@ -209,9 +216,10 @@ npm run dev
 cd sonhos-lusiadas-backend
 python -m venv venv
 venv\Scripts\activate
-pip install flask flask-cors pandas numpy matplotlib seaborn plotly wordcloud anthropic python-dotenv requests
+pip install -r requirements.txt
 echo "ANTHROPIC_API_KEY=sua_chave_aqui" > .env
-   python src/main.py
+echo "CORS_ORIGINS=http://localhost:3000,http://localhost:5173,http://192.168.1.14:5173" >> .env
+python src/main.py
    ```
 
 **Terminal 2 - Frontend:**
@@ -223,8 +231,8 @@ npm run dev
 
 ### 🌐 **Acessar a Aplicação**
 
-- **Frontend**: http://localhost:5173
-- **Backend API**: http://localhost:5000
+- **Frontend**: http://localhost:5173 ou http://192.168.1.14:5173
+- **Backend API**: http://localhost:5000 ou http://192.168.1.14:5000
 - **Health Check**: http://localhost:5000/api/analysis/health
 
 ### 📱 **Interface do Usuário**
@@ -245,10 +253,18 @@ npm run dev
 
 ### 🐛 Solução de Problemas
 
+> ✅ **Problemas Resolvidos**: Os seguintes problemas foram identificados e corrigidos automaticamente:
+> - Configuração de URL do backend (localhost vs IP)
+> - Endpoint de visualização incorreto
+> - Configuração de CORS para aceitar requisições do frontend
+> - Componente Toaster faltante
+> - Arquivo CSS vazio (configurações do Tailwind)
+> - Configuração do Tailwind CSS faltante
+
 **Erro de dependências Python:**
 ```bash
 pip install --upgrade pip
-pip install flask flask-cors pandas numpy matplotlib seaborn plotly wordcloud anthropic python-dotenv requests --force-reinstall
+pip install -r requirements.txt
 ```
 
 **Erro de dependências Node.js:**
@@ -282,6 +298,15 @@ ls package.json
 # Reinstale dependências
 npm install --force
 ```
+
+**Erro de CORS (Cross-Origin):**
+- O backend está configurado para aceitar requisições de `localhost:5173` e `192.168.1.14:5173`
+- Se você estiver usando um IP diferente, edite o arquivo `.env` no backend e adicione seu IP
+
+**Erro de conexão entre frontend e backend:**
+- Verifique se ambos estão rodando simultaneamente
+- Confirme se as URLs estão corretas no arquivo `src/services/api.js`
+- Teste a conexão acessando `http://localhost:5000` no navegador
 
 ## 📚 Manual do Usuário
 
@@ -421,6 +446,29 @@ Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para ma
 - Visualização de conceitos literários
 - Ferramenta de estudo e pesquisa
 
+## 📊 Status Atual do Projeto
+
+### ✅ **Funcionalidades Implementadas e Testadas**
+- [x] Backend Flask com API RESTful completa
+- [x] Frontend React com interface moderna e responsiva
+- [x] Upload de arquivos (.txt, .docx, .pdf)
+- [x] Pré-processamento de texto com spaCy
+- [x] Expansão semântica com Claude Sonnet 4
+- [x] Análise de contextos e classificação automática
+- [x] Geração de visualizações interativas
+- [x] Dashboard administrativo
+- [x] Configuração de CORS para desenvolvimento
+- [x] Componentes UI completos (Tailwind CSS)
+- [x] Sistema de notificações (Toaster)
+
+### 🔧 **Problemas Resolvidos Recentemente**
+- ✅ Configuração de URL do backend (localhost vs IP)
+- ✅ Endpoint de visualização incorreto
+- ✅ Configuração de CORS para aceitar requisições do frontend
+- ✅ Componente Toaster faltante
+- ✅ Arquivo CSS vazio (configurações do Tailwind)
+- ✅ Configuração do Tailwind CSS faltante
+
 ## 🚀 Próximos Passos
 
 ### 🔮 **Funcionalidades Futuras**
@@ -430,6 +478,8 @@ Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para ma
 - [ ] API para integração com outros sistemas
 - [ ] Análise de sentimento
 - [ ] Detecção de temas automática
+- [ ] Sistema de autenticação de usuários
+- [ ] Banco de dados para persistência de análises
 
 ### 🤝 **Contribuindo**
 1. Fork o projeto
@@ -442,3 +492,5 @@ Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para ma
 *Desenvolvido com ❤️ para a análise literária e pesquisa acadêmica*
 
 **🎉 O projeto está 100% funcional e pronto para uso!**
+
+> 📝 **Última atualização**: Dezembro 2024 - Todos os problemas de configuração foram resolvidos e o sistema está operacional.

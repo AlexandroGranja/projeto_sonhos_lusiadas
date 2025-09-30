@@ -16,7 +16,7 @@ import logging
 from typing import List, Dict, Tuple, Optional
 from collections import defaultdict, Counter
 import json
-import anthropic
+import openai
 from dotenv import load_dotenv
 
 # Carrega variáveis de ambiente
@@ -31,22 +31,23 @@ class ContextAnalyzer:
     
     def __init__(self):
         """Inicializa o analisador de contexto."""
-        self.anthropic_client = None
-        self._setup_anthropic()
+        self.openai_client = None
+        self._setup_openai()
         self.results_cache = {}
     
-    def _setup_anthropic(self):
-        """Configura o cliente Anthropic."""
-        api_key = os.getenv('ANTHROPIC_API_KEY')
+    def _setup_openai(self):
+        """Configura o cliente OpenAI."""
+        api_key = os.getenv('OPENAI_API_KEY')
         if api_key:
             try:
-                self.anthropic_client = anthropic.Anthropic(api_key=api_key)
-                logger.info("Cliente Anthropic configurado para análise de contexto.")
+                openai.api_key = api_key
+                self.openai_client = openai
+                logger.info("Cliente OpenAI configurado para análise de contexto.")
             except Exception as e:
-                logger.error(f"Erro ao configurar Anthropic: {e}")
-                self.anthropic_client = None
+                logger.error(f"Erro ao configurar OpenAI: {e}")
+                self.openai_client = None
         else:
-            logger.warning("ANTHROPIC_API_KEY não encontrada para análise de contexto.")
+            logger.warning("OPENAI_API_KEY não encontrada para análise de contexto.")
     
     def search_contexts(self, text: str, words: List[str], 
                        context_window: int = 100) -> pd.DataFrame:
@@ -129,9 +130,9 @@ class ContextAnalyzer:
         
         return result
     
-    def classify_contexts_with_claude(self, contexts_df: pd.DataFrame) -> pd.DataFrame:
+    def classify_contexts_with_openai(self, contexts_df: pd.DataFrame) -> pd.DataFrame:
         """
-        Classifica contextos usando Claude Sonnet 4.
+        Classifica contextos usando OpenAI GPT-4.
         
         Args:
             contexts_df: DataFrame com contextos
@@ -139,7 +140,7 @@ class ContextAnalyzer:
         Returns:
             DataFrame com classificação adicionada
         """
-        if not self.anthropic_client or contexts_df.empty:
+        if not self.openai_client or contexts_df.empty:
             return contexts_df
         
         # Adiciona coluna de classificação
@@ -198,8 +199,8 @@ class ContextAnalyzer:
         [{{"type": "tipo", "confidence": 0.95}}, ...]
         """
         
-        response = self.anthropic_client.messages.create(
-            model="claude-3-5-sonnet-20241022",
+        response = self.openai_client.chat.completions.create(
+            model="gpt-4",
             max_tokens=1000,
             temperature=0.3,
             messages=[{
@@ -210,7 +211,7 @@ class ContextAnalyzer:
         
         try:
             # Extrai JSON da resposta
-            json_text = response.content[0].text
+            json_text = response.choices[0].message.content
             json_match = re.search(r'\[.*\]', json_text, re.DOTALL)
             if json_match:
                 return json.loads(json_match.group())

@@ -12,7 +12,7 @@ ao tema "sonho" usando diferentes abordagens:
 import os
 import logging
 from typing import List, Set, Dict, Tuple, Optional
-import anthropic
+import openai
 from dotenv import load_dotenv
 import json
 import time
@@ -29,8 +29,8 @@ class SemanticExpander:
     
     def __init__(self):
         """Inicializa o expansor semântico."""
-        self.anthropic_client = None
-        self._setup_anthropic()
+        self.openai_client = None
+        self._setup_openai()
         
         # Palavras-chave semente relacionadas a sonho
         self.seed_words = [
@@ -39,23 +39,24 @@ class SemanticExpander:
             "aparição", "revelação", "profecia", "presságio", "augúrio"
         ]
     
-    def _setup_anthropic(self):
-        """Configura o cliente Anthropic."""
-        api_key = os.getenv('ANTHROPIC_API_KEY')
+    def _setup_openai(self):
+        """Configura o cliente OpenAI."""
+        api_key = os.getenv('OPENAI_API_KEY')
         if api_key:
             try:
-                self.anthropic_client = anthropic.Anthropic(api_key=api_key)
-                logger.info("Cliente Anthropic configurado com sucesso.")
+                openai.api_key = api_key
+                self.openai_client = openai
+                logger.info("Cliente OpenAI configurado com sucesso.")
             except Exception as e:
-                logger.error(f"Erro ao configurar Anthropic: {e}")
-                self.anthropic_client = None
+                logger.error(f"Erro ao configurar OpenAI: {e}")
+                self.openai_client = None
         else:
-            logger.warning("ANTHROPIC_API_KEY não encontrada. "
-                         "Funcionalidades do Claude não estarão disponíveis.")
+            logger.warning("OPENAI_API_KEY não encontrada. "
+                         "Funcionalidades da OpenAI não estarão disponíveis.")
     
-    def expand_with_claude(self, context: str = "Os Lusíadas de Camões") -> List[str]:
+    def expand_with_openai(self, context: str = "Os Lusíadas de Camões") -> List[str]:
         """
-        Expande vocabulário usando Claude Sonnet 4.
+        Expande vocabulário usando OpenAI GPT-4.
         
         Args:
             context: Contexto literário para a expansão
@@ -63,8 +64,8 @@ class SemanticExpander:
         Returns:
             Lista de palavras expandidas
         """
-        if not self.anthropic_client:
-            logger.warning("Cliente Anthropic não disponível.")
+        if not self.openai_client:
+            logger.warning("Cliente OpenAI não disponível.")
             return []
         
         try:
@@ -84,19 +85,20 @@ class SemanticExpander:
             relacionadas ao tema "sonho" no contexto literário português clássico.
             """
             
-            response = self.anthropic_client.messages.create(
-                model="claude-3-5-sonnet-20241022",
-                max_tokens=1000,
-                temperature=0.7,
+            response = self.openai_client.chat.completions.create(
+                model="gpt-4",
                 messages=[{
                     "role": "user",
                     "content": prompt
-                }]
+                }],
+                max_tokens=1000,
+                temperature=0.7
             )
             
             # Extrai palavras da resposta
             words = []
-            for line in response.content[0].text.split('\n'):
+            response_text = response.choices[0].message.content
+            for line in response_text.split('\n'):
                 line = line.strip()
                 if line and not line.startswith('#') and not line.startswith('-'):
                     # Remove numeração e pontuação
@@ -104,11 +106,11 @@ class SemanticExpander:
                     if word and len(word) > 2:
                         words.append(word.lower())
             
-            logger.info(f"Claude expandiu para {len(words)} palavras.")
+            logger.info(f"OpenAI expandiu para {len(words)} palavras.")
             return words[:30]  # Limita a 30 palavras
             
         except Exception as e:
-            logger.error(f"Erro na expansão com Claude: {e}")
+            logger.error(f"Erro na expansão com OpenAI: {e}")
             return []
     
     def expand_with_fasttext(self) -> List[str]:
@@ -186,11 +188,11 @@ class SemanticExpander:
             'combined_expansion': []
         }
         
-        # Expansão com Claude
+        # Expansão com OpenAI
         try:
-            results['claude_expansion'] = self.expand_with_claude()
+            results['openai_expansion'] = self.expand_with_openai()
         except Exception as e:
-            logger.error(f"Erro na expansão Claude: {e}")
+            logger.error(f"Erro na expansão OpenAI: {e}")
         
         # Expansão com FastText
         try:
@@ -206,7 +208,7 @@ class SemanticExpander:
         
         # Combina todas as palavras
         all_words = set(self.seed_words)
-        all_words.update(results['claude_expansion'])
+        all_words.update(results['openai_expansion'])
         all_words.update(results['fasttext_expansion'])
         all_words.update(results['bertimbau_expansion'])
         
