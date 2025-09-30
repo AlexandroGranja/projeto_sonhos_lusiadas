@@ -45,8 +45,9 @@ let memoryState = { toasts: [] }
 const listeners = []
 
 function dispatch(action) {
+  memoryState = reducer(memoryState, action)
   for (let listener of listeners) {
-    listener(action)
+    listener(memoryState)
   }
 }
 
@@ -110,13 +111,6 @@ function reducer(state, action) {
         ...state,
         toasts: state.toasts.filter((t) => t.id !== action.toastId),
       }
-  }
-}
-
-function dispatch(action) {
-  memoryState = reducer(memoryState, action)
-  for (let listener of listeners) {
-    listener(memoryState)
   }
 }
 
