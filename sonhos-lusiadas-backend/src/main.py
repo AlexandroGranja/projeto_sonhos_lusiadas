@@ -63,6 +63,7 @@ def index():
             'preprocess': '/api/analysis/preprocess',
             'expand-semantic': '/api/analysis/expand-semantic',
             'analyze-contexts': '/api/analysis/analyze-contexts',
+            'classify-context': '/api/analysis/classify-context',
             'visualize': '/api/analysis/visualize',
             'download': '/api/analysis/download',
             'complete-analysis': '/api/analysis/complete-analysis'
