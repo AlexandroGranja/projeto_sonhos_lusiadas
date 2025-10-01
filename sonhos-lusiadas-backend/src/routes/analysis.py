@@ -10,6 +10,15 @@ from flask import Blueprint, request, jsonify, current_app
 from werkzeug.utils import secure_filename
 import json
 
+# Importar bibliotecas para processamento de arquivos
+try:
+    import docx2txt
+    DOCX2TXT_AVAILABLE = True
+    print("✅ docx2txt disponível para processamento de arquivos .doc")
+except ImportError:
+    DOCX2TXT_AVAILABLE = False
+    print("⚠️ docx2txt não disponível - arquivos .doc podem não funcionar")
+
 # Adiciona o diretório pai ao path para importar módulos
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
@@ -21,7 +30,7 @@ logger = logging.getLogger(__name__)
 analysis_bp = Blueprint('analysis', __name__)
 
 # Configuração de upload
-ALLOWED_EXTENSIONS = {'txt', 'docx', 'pdf'}
+ALLOWED_EXTENSIONS = {'txt', 'doc', 'docx', 'pdf'}
 MAX_FILE_SIZE = 16 * 1024 * 1024  # 16MB
 
 def allowed_file(filename):
@@ -54,10 +63,79 @@ def upload_file():
             filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
             file.save(filepath)
             
+            # Processar arquivos Word
+            content = ""
+            if filename.endswith('.docx'):
+                try:
+                    import zipfile
+                    import xml.etree.ElementTree as ET
+                    
+                    # DOCX é um arquivo ZIP
+                    with zipfile.ZipFile(filepath, 'r') as docx:
+                        # Ler o documento principal
+                        document = docx.read('word/document.xml')
+                        root = ET.fromstring(document)
+                        
+                        # Extrair texto de todos os parágrafos
+                        for paragraph in root.iter():
+                            if paragraph.text:
+                                content += paragraph.text + " "
+                            if paragraph.tail:
+                                content += paragraph.tail + " "
+                                
+                    content = content.strip()
+                    print(f"DEBUG: Conteúdo DOCX extraído: {content[:200]}...")
+                    
+                except Exception as e:
+                    print(f"Erro ao processar DOCX: {e}")
+                    content = "Erro ao processar arquivo DOCX"
+                    
+            elif filename.endswith('.doc'):
+                if DOCX2TXT_AVAILABLE:
+                    try:
+                        print("DEBUG: Processando arquivo .doc com docx2txt...")
+                        content = docx2txt.process(filepath)
+                        content = content.strip()
+                        print(f"DEBUG: Conteúdo DOC extraído: {content[:200]}...")
+                        
+                    except Exception as e:
+                        print(f"Erro ao processar DOC com docx2txt: {e}")
+                        content = f"Erro ao processar arquivo DOC: {str(e)}"
+                else:
+                    print("docx2txt não disponível, tentando método alternativo...")
+                    try:
+                        # Método alternativo para .doc
+                        import subprocess
+                        
+                        # Tentar usar antiword se disponível
+                        result = subprocess.run(['antiword', filepath], 
+                                             capture_output=True, text=True, timeout=30)
+                        if result.returncode == 0:
+                            content = result.stdout.strip()
+                            print(f"DEBUG: Conteúdo DOC extraído com antiword: {content[:200]}...")
+                        else:
+                            content = "Erro: antiword não disponível para processar arquivo .doc"
+                            
+                    except Exception as e:
+                        print(f"Erro ao processar DOC: {e}")
+                        content = "Erro ao processar arquivo DOC - formato não suportado"
+                    
+            elif filename.endswith('.txt'):
+                # Para arquivos .txt, ler diretamente
+                try:
+                    with open(filepath, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                    print(f"DEBUG: Conteúdo TXT lido: {content[:200]}...")
+                except Exception as e:
+                    print(f"Erro ao ler TXT: {e}")
+                    content = f"Erro ao ler arquivo TXT: {str(e)}"
+            
             return jsonify({
-                'message': 'Arquivo enviado com sucesso',
+                'message': 'Arquivo processado com sucesso',
                 'filename': filename,
-                'filepath': filepath
+                'filepath': filepath,
+                'content': content,
+                'content_length': len(content)
             })
         else:
             return jsonify({'error': 'Tipo de arquivo não permitido'}), 400
@@ -197,44 +275,205 @@ def download_results():
         logger.error(f"Erro no download: {e}")
         return jsonify({'error': 'Erro interno do servidor'}), 500
 
+# Dicionário expandido de termos relacionados
+EXPANDED_TERMS = {
+    'onírico': [
+        'sonho', 'sonhar', 'sonhador', 'sonhante', 'sonhoso',
+        'pesadelo', 'pesadelar', 'pesadelante', 'pesadeloso',
+        'dormir', 'adormecer', 'despertar', 'desperto',
+        'sonolência', 'sonolento', 'sonolentamente',
+        'sonambulismo', 'sonambúlico', 'sonambular',
+        'insônia', 'insone', 'insoniamente', 'insoniar',
+        'soneca', 'sonecar', 'sonecante',
+        'repouso', 'repousar', 'repousante',
+        'descanso', 'descansar', 'descansante'
+    ],
+    'profético': [
+        'visão', 'visionário', 'visionar', 'visionante',
+        'profecia', 'profético', 'profetizar', 'profetizante',
+        'revelação', 'revelar', 'revelador', 'revelante',
+        'aparição', 'aparecer', 'aparecimento', 'aparente',
+        'oráculo', 'oracular', 'oracularmente',
+        'vaticínio', 'vaticinar', 'vaticinador', 'vaticinante',
+        'presságio', 'pressagiar', 'pressagiador',
+        'augúrio', 'augurar', 'augurador',
+        'predição', 'predizer', 'preditor'
+    ],
+    'alegórico': [
+        'sombra', 'sombreado', 'sombreadamente', 'sombreador',
+        'fantasia', 'fantasioso', 'fantasiosamente', 'fantasiar',
+        'ilusão', 'ilusório', 'ilusoriamente', 'ilusionar',
+        'metáfora', 'metafórico', 'metafóricamente',
+        'símbolo', 'simbólico', 'simbolicamente', 'simbolizar',
+        'alegoria', 'alegórico', 'alegoricamente', 'alegorizar',
+        'emblema', 'emblemático', 'emblematicamente',
+        'figura', 'figurado', 'figuradamente', 'figurar',
+        'representação', 'representar', 'representante'
+    ],
+    'divino': [
+        'glória', 'glorioso', 'gloriosamente', 'glorificar',
+        'divino', 'divinamente', 'divindade', 'divinizar',
+        'celestial', 'celestialmente', 'celestialidade',
+        'sobrenatural', 'sobrenaturalmente', 'sobrenaturalidade',
+        'milagre', 'milagroso', 'milagrosamente', 'milagrar',
+        'sagrado', 'sagradamente', 'sacralidade', 'sacralizar',
+        'santo', 'santamente', 'santidade', 'santificar',
+        'bendito', 'benditamente', 'bendizer',
+        'abençoado', 'abençoar', 'abençoador',
+        'miraculoso', 'miraculosamente'
+    ]
+}
+
+def count_expanded_terms(text):
+    """Conta termos expandidos no texto."""
+    results = {}
+    text_lower = text.lower()
+    
+    print(f"DEBUG: Analisando texto: {text_lower[:100]}...")
+    print(f"DEBUG: Tamanho do texto: {len(text_lower)} caracteres")
+    
+    for category, terms in EXPANDED_TERMS.items():
+        results[category] = {}
+        total_count = 0
+        
+        for term in terms:
+            count = text_lower.count(term.lower())
+            if count > 0:
+                results[category][term] = count
+                total_count += count
+                print(f"DEBUG: Encontrado '{term}': {count} vezes")
+        
+        results[category]['total'] = total_count
+        print(f"DEBUG: {category}: {total_count} termos encontrados")
+    
+    print(f"DEBUG: Resultado final: {results}")
+    return results
+
+def analyze_dream_contexts(text):
+    """Analisa contextos de sonhos no texto."""
+    # Dividir texto em sentenças
+    sentences = text.split('.')
+    dream_contexts = []
+    
+    for i, sentence in enumerate(sentences):
+        sentence_lower = sentence.lower()
+        
+        # Verificar se contém termos relacionados a sonhos
+        dream_terms = []
+        for category, terms in EXPANDED_TERMS.items():
+            for term in terms:
+                if term.lower() in sentence_lower:
+                    dream_terms.append({
+                        'term': term,
+                        'category': category
+                    })
+        
+        if dream_terms:
+            dream_contexts.append({
+                'sentence': sentence.strip(),
+                'position': i,
+                'terms': dream_terms,
+                'context_type': classify_context_type(dream_terms)
+            })
+    
+    return dream_contexts
+
+def classify_context_type(terms):
+    """Classifica o tipo de contexto baseado nos termos encontrados."""
+    categories = [term['category'] for term in terms]
+    
+    if 'divino' in categories:
+        return 'divino'
+    elif 'profético' in categories:
+        return 'profético'
+    elif 'alegórico' in categories:
+        return 'alegórico'
+    else:
+        return 'onírico'
+
+def calculate_analysis_metrics(text, results):
+    """Calcula métricas de validação da análise."""
+    total_words = len(text.split())
+    total_dream_terms = sum(category['total'] for category in results['expanded_terms'].values())
+    
+    return {
+        'coverage': total_dream_terms / total_words if total_words > 0 else 0,
+        'total_words': total_words,
+        'dream_terms_found': total_dream_terms,
+        'categories_covered': len([cat for cat in results['expanded_terms'].values() if cat['total'] > 0]),
+        'confidence_score': min(95, (total_dream_terms / total_words) * 1000) if total_words > 0 else 0
+    }
+
 @analysis_bp.route('/complete-analysis', methods=['POST'])
 def complete_analysis():
-    """Análise completa do texto."""
+    """Análise completa do texto com metodologia expandida."""
     try:
         data = request.get_json()
         text = data.get('text', '')
         
+        print(f"DEBUG BACKEND: Texto recebido: {text[:100]}...")
+        print(f"DEBUG BACKEND: Tamanho do texto: {len(text)} caracteres")
+        
         if not text:
             return jsonify({'error': 'Texto é obrigatório'}), 400
         
-        # Simulação de análise completa
+        # Análise expandida de termos
+        expanded_terms = count_expanded_terms(text)
+        
+        # Análise de contextos
+        dream_contexts = analyze_dream_contexts(text)
+        
+        # Classificação por tipos
+        context_classification = {
+            'onírico': len([ctx for ctx in dream_contexts if ctx['context_type'] == 'onírico']),
+            'profético': len([ctx for ctx in dream_contexts if ctx['context_type'] == 'profético']),
+            'alegórico': len([ctx for ctx in dream_contexts if ctx['context_type'] == 'alegórico']),
+            'divino': len([ctx for ctx in dream_contexts if ctx['context_type'] == 'divino'])
+        }
+        
+        # Processamento do texto
+        preprocessing = {
+            'original_length': len(text),
+            'processed_length': len(text.lower().strip()),
+            'sentences': text.count('.') + text.count('!') + text.count('?'),
+            'words': len(text.split()),
+            'unique_words': len(set(text.lower().split()))
+        }
+        
+        # Resultados completos
         results = {
-            'preprocessing': {
-                'original_length': len(text),
-                'processed_length': len(text.lower().strip()),
-                'sentences': text.count('.') + text.count('!') + text.count('?')
-            },
+            'preprocessing': preprocessing,
+            'expanded_terms': expanded_terms,
+            'dream_contexts': dream_contexts,
+            'context_classification': context_classification,
             'semantic_expansion': {
-                'seed_words': 5,
-                'expanded_words': 15,
-                'total_vocabulary': 20
-            },
-            'context_analysis': {
-                'total_contexts': 8,
-                'onírico': 3,
-                'profético': 2,
-                'alegórico': 3
+                'total_categories': len(EXPANDED_TERMS),
+                'total_terms_searched': sum(len(terms) for terms in EXPANDED_TERMS.values()),
+                'terms_found': sum(cat['total'] for cat in expanded_terms.values()),
+                'coverage_percentage': (sum(cat['total'] for cat in expanded_terms.values()) / preprocessing['words']) * 100
             },
             'visualizations': {
                 'word_frequency': True,
                 'context_distribution': True,
-                'dream_types': True
+                'dream_types': True,
+                'expanded_analysis': True
             }
         }
         
+        # Métricas de validação
+        metrics = calculate_analysis_metrics(text, results)
+        results['validation_metrics'] = metrics
+        
         return jsonify({
-            'message': 'Análise completa realizada com sucesso',
-            'results': results
+            'message': 'Análise expandida realizada com sucesso',
+            'results': results,
+            'methodology': {
+                'name': 'Análise Semântica Expandida dos Lusíadas',
+                'version': '2.0',
+                'description': 'Metodologia completa para análise de temas oníricos com expansão semântica',
+                'categories_analyzed': list(EXPANDED_TERMS.keys()),
+                'total_terms': sum(len(terms) for terms in EXPANDED_TERMS.values())
+            }
         })
         
     except Exception as e:
