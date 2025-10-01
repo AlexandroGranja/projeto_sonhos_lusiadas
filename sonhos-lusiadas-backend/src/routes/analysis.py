@@ -8,6 +8,7 @@ import sys
 import logging
 import re
 import unicodedata
+from datetime import datetime
 from flask import Blueprint, request, jsonify, current_app
 from werkzeug.utils import secure_filename
 import json
@@ -386,6 +387,126 @@ def download_results():
         logger.error(f"Erro no download: {e}")
         return jsonify({'error': 'Erro interno do servidor'}), 500
 
+@analysis_bp.route('/export-detailed-report', methods=['POST'])
+def export_detailed_report():
+    """Exporta relatório detalhado em PDF ou CSV."""
+    try:
+        data = request.get_json()
+        export_format = data.get('format', 'csv')  # 'csv' ou 'pdf'
+        analysis_data = data.get('analysis_data', {})
+        
+        if not analysis_data:
+            return jsonify({'error': 'Dados de análise não fornecidos'}), 400
+        
+        if export_format == 'csv':
+            # Gera CSV
+            csv_content = generate_csv_report(analysis_data)
+            return jsonify({
+                'message': 'Relatório CSV gerado com sucesso',
+                'content': csv_content,
+                'filename': f'relatorio_detalhado_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
+            })
+        
+        elif export_format == 'pdf':
+            # Gera PDF (implementação básica)
+            pdf_content = generate_pdf_report(analysis_data)
+            return jsonify({
+                'message': 'Relatório PDF gerado com sucesso',
+                'content': pdf_content,
+                'filename': f'relatorio_detalhado_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf'
+            })
+        
+        else:
+            return jsonify({'error': 'Formato de exportação não suportado'}), 400
+            
+    except Exception as e:
+        logger.error(f"Erro na exportação: {e}")
+        return jsonify({'error': 'Erro interno do servidor'}), 500
+
+def generate_csv_report(analysis_data):
+    """Gera relatório em formato CSV."""
+    import csv
+    import io
+    
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    # Cabeçalhos
+    headers = ['Canto', 'Estrofe', 'Tipo de Contexto', 'Confiança (%)', 'Raciocínio', 'Trecho', 'Termos Encontrados']
+    writer.writerow(headers)
+    
+    # Dados dos contextos
+    for canto, info in analysis_data.get('by_canto', {}).items():
+        for ctx in info.get('dream_contexts', []):
+            writer.writerow([
+                canto,
+                ctx.get('stanza', ''),
+                ctx.get('context_type', ''),
+                round((ctx.get('confidence_score', 0) * 100), 2),
+                ctx.get('reasoning', ''),
+                ctx.get('sentence', ''),
+                '; '.join([term.get('term', '') for term in ctx.get('terms', [])])
+            ])
+    
+    return output.getvalue()
+
+def generate_pdf_report(analysis_data):
+    """Gera relatório em formato PDF (implementação básica)."""
+    # Em produção, seria melhor usar uma biblioteca como ReportLab
+    # Por enquanto, retorna HTML que pode ser convertido para PDF no frontend
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Relatório Detalhado - Análise de Sonhos em Os Lusíadas</title>
+        <style>
+            body {{ font-family: Arial, sans-serif; margin: 20px; }}
+            .header {{ text-align: center; margin-bottom: 30px; }}
+            .context {{ margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; }}
+            .confidence {{ color: #666; font-size: 0.9em; }}
+            .reasoning {{ background: #f5f5f5; padding: 10px; margin-top: 10px; }}
+            .summary {{ background: #e3f2fd; padding: 15px; margin-bottom: 20px; }}
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>Relatório Detalhado - Análise de Sonhos em Os Lusíadas</h1>
+            <p>Relatório gerado em {datetime.now().strftime("%d/%m/%Y às %H:%M")}</p>
+        </div>
+        
+        <div class="summary">
+            <h2>Resumo da Análise</h2>
+            <p><strong>Total de palavras:</strong> {analysis_data.get('aggregate', {}).get('preprocessing', {}).get('words', 0)}</p>
+            <p><strong>Total de contextos encontrados:</strong> {sum(analysis_data.get('aggregate', {}).get('context_classification', {}).values())}</p>
+            <p><strong>Cantos analisados:</strong> {analysis_data.get('aggregate', {}).get('cantos_identified', 0)}</p>
+        </div>
+        
+        <h2>Contextos por Canto</h2>
+    """
+    
+    for canto, info in analysis_data.get('by_canto', {}).items():
+        html_content += f"<h3>{canto}</h3>"
+        for ctx in info.get('dream_contexts', []):
+            html_content += f"""
+            <div class="context">
+                <h4>Estrofe {ctx.get('stanza', 'N/A')}</h4>
+                <p><strong>Tipo:</strong> {ctx.get('context_type', 'N/A')}</p>
+                <p class="confidence"><strong>Confiança:</strong> {round((ctx.get('confidence_score', 0) * 100), 2)}%</p>
+                <p><strong>Trecho:</strong> {ctx.get('sentence', 'N/A')}</p>
+                <div class="reasoning">
+                    <strong>Raciocínio:</strong> {ctx.get('reasoning', 'N/A')}
+                </div>
+            </div>
+            """
+    
+    html_content += """
+    </body>
+    </html>
+    """
+    
+    return html_content
+
 # Dicionários de termos
 EXPANDED_TERMS_FULL = {
     'onírico': [
@@ -510,12 +631,18 @@ def analyze_dream_contexts(text: str, terms_to_use: dict) -> list:
         
         buffer_sentence = ''
         if dream_terms:
+            context_type = classify_context_type(dream_terms)
+            confidence_score = calculate_confidence_score(dream_terms, s)
+            reasoning = generate_reasoning(dream_terms, s, context_type)
+            
             return {
                 'sentence': s,
                 'position': idx,
                 'stanza': stanza_num,
                 'terms': dream_terms,
-                'context_type': classify_context_type(dream_terms)
+                'context_type': context_type,
+                'confidence_score': confidence_score,
+                'reasoning': reasoning
             }
         return None
 
@@ -581,6 +708,60 @@ def classify_context_type(terms):
         return 'alegórico'
     else:
         return 'onírico'
+
+def calculate_confidence_score(terms, sentence):
+    """Calcula score de confiança baseado na quantidade e qualidade dos termos encontrados."""
+    if not terms:
+        return 0.0
+    
+    # Base score por quantidade de termos
+    base_score = min(0.7, len(terms) * 0.2)
+    
+    # Bonus por termos específicos
+    specific_terms = ['sonho', 'visão', 'profecia', 'revelação', 'aparição']
+    specific_bonus = 0.0
+    for term in terms:
+        if any(specific in term['term'].lower() for specific in specific_terms):
+            specific_bonus += 0.1
+    
+    # Bonus por comprimento da sentença (contexto mais rico)
+    length_bonus = min(0.2, len(sentence) / 1000)
+    
+    # Penalty por sentença muito curta
+    length_penalty = 0.0
+    if len(sentence) < 50:
+        length_penalty = 0.1
+    
+    confidence = min(0.95, base_score + specific_bonus + length_bonus - length_penalty)
+    return round(confidence, 2)
+
+def generate_reasoning(terms, sentence, context_type):
+    """Gera explicação do raciocínio para a classificação."""
+    if not terms:
+        return "Nenhum termo relacionado a sonhos encontrado."
+    
+    term_list = [term['term'] for term in terms]
+    categories = [term['category'] for term in terms]
+    
+    # Explicação baseada no tipo de contexto
+    if context_type == 'divino':
+        reasoning = f"Classificado como 'divino' devido aos termos: {', '.join(term_list)}. "
+        reasoning += "O contexto sugere uma revelação ou aparição de natureza sobrenatural."
+    elif context_type == 'profético':
+        reasoning = f"Classificado como 'profético' devido aos termos: {', '.join(term_list)}. "
+        reasoning += "O contexto indica uma visão ou presságio sobre eventos futuros."
+    elif context_type == 'alegórico':
+        reasoning = f"Classificado como 'alegórico' devido aos termos: {', '.join(term_list)}. "
+        reasoning += "O contexto sugere uso simbólico ou metafórico relacionado a sonhos."
+    else:  # onírico
+        reasoning = f"Classificado como 'onírico' devido aos termos: {', '.join(term_list)}. "
+        reasoning += "O contexto refere-se diretamente a sonhos, pesadelos ou estados de sono."
+    
+    # Adiciona informações sobre a sentença
+    if len(sentence) > 100:
+        reasoning += f" A sentença contém {len(sentence)} caracteres, fornecendo contexto rico para análise."
+    
+    return reasoning
 
 def calculate_analysis_metrics(text: str, aggregated: dict) -> dict:
     """Calcula métricas de validação globais a partir do texto e agregados."""

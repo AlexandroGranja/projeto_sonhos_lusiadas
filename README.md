@@ -209,7 +209,22 @@ npm run dev
 
 ## ⚡ Ativação Rápida
 
-### 🚀 **Comandos Prontos para Executar**
+### 🚀 **Scripts de Inicialização Automática**
+
+**Windows:**
+```bash
+# Execute o script de inicialização
+scripts\start_project.bat
+```
+
+**Linux/Mac:**
+```bash
+# Torne o script executável e execute
+chmod +x scripts/start_project.sh
+./scripts/start_project.sh
+```
+
+### 🚀 **Comandos Manuais**
 
 **Terminal 1 - Backend:**
    ```bash
@@ -374,9 +389,20 @@ projeto_sonhos_lusiadas/
 │   │   ├── 📁 hooks/               # Custom hooks
 │   │   └── 📁 services/            # Serviços de API
 │   └── package.json                # Dependências Node.js
-├── 📁 data/                        # Dados processados
-├── 📁 models/                      # Modelos de IA
-└── 📁 docs/                        # Documentação
+├── 📁 data/                        # Dados do projeto
+│   └── 📁 raw/
+│       └── os_lusiadas.txt         # Texto original
+├── 📁 docs/                        # Documentação
+│   ├── MANUAL_USUARIO.md           # Manual do usuário
+│   ├── MELHORIAS_IMPLEMENTADAS.md  # Melhorias implementadas
+│   └── 📁 relatorios/              # Relatórios de análise
+├── 📁 scripts/                     # Scripts de inicialização
+│   ├── start_project.bat           # Script Windows
+│   └── start_project.sh            # Script Linux/Mac
+├── 📁 analysis_results/            # Resultados de análises
+├── project_config.json             # Configuração do projeto
+├── env.example                     # Exemplo de variáveis de ambiente
+└── README.md                       # Este arquivo
 ```
 
 ## 🤝 Contribuindo

@@ -136,6 +136,30 @@ class ApiService {
       throw error
     }
   }
+
+  async exportDetailedReport(analysisData, format = 'csv') {
+    try {
+      const response = await fetch(`${API_BASE_URL}/export-detailed-report`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ 
+          format, 
+          analysis_data: analysisData 
+        })
+      })
+      
+      if (!response.ok) {
+        throw new Error(`Erro na exportação: ${response.statusText}`)
+      }
+      
+      return await response.json()
+    } catch (error) {
+      console.error('Erro na exportação:', error)
+      throw error
+    }
+  }
 }
 
 export default new ApiService()

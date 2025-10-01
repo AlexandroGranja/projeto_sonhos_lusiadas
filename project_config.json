@@ -1,0 +1,31 @@
+{
+  "project": {
+    "name": "Sonhos Lusíadas - Análise de Temas Oníricos",
+    "version": "2.0.0",
+    "description": "Sistema de análise quantitativa e qualitativa de temas oníricos em Os Lusíadas de Camões",
+    "author": "Projeto de Pesquisa Acadêmica"
+  },
+  "structure": {
+    "frontend": "sonhos-lusiadas-app",
+    "backend": "sonhos-lusiadas-backend",
+    "data": "data",
+    "docs": "docs",
+    "scripts": "scripts",
+    "analysis_results": "analysis_results"
+  },
+  "features": {
+    "analysis_modes": ["estrito", "completo"],
+    "context_types": ["onírico", "profético", "alegórico", "divino"],
+    "export_formats": ["csv", "pdf", "json"],
+    "visualizations": ["bar_chart", "pie_chart", "line_chart"]
+  },
+  "api": {
+    "base_url": "http://localhost:5000/api/analysis",
+    "endpoints": {
+      "health": "/health",
+      "upload": "/upload",
+      "complete_analysis": "/complete-analysis",
+      "export_report": "/export-detailed-report"
+    }
+  }
+}

@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { Toaster } from '@/components/ui/toaster'
 import SimpleAnalysis from '@/components/SimpleAnalysis'
+import EnhancedAnalysis from '@/components/EnhancedAnalysis'
 import './App.css'
 
 function App() {
@@ -10,6 +11,7 @@ function App() {
         <main className="container mx-auto px-4 py-8">
           <Routes>
             <Route path="/" element={<SimpleAnalysis />} />
+            <Route path="/enhanced" element={<EnhancedAnalysis />} />
             <Route path="*" element={<SimpleAnalysis />} />
           </Routes>
         </main>
