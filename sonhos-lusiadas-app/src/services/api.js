@@ -32,14 +32,14 @@ class ApiService {
     }
   }
 
-  async completeAnalysis(text) {
+  async completeAnalysis(text, mode = 'estrito') {
     try {
       const response = await fetch(`${API_BASE_URL}/complete-analysis`, {
       method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ text })
+        body: JSON.stringify({ text, mode })
       })
       
       if (!response.ok) {

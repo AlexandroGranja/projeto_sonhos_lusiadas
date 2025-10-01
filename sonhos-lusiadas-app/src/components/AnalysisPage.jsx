@@ -174,7 +174,7 @@ const AnalysisPage = () => {
       console.log('Chamando análise completa do backend...')
       console.log('Texto para análise:', textToAnalyze.substring(0, 100) + '...')
       
-      const realApiResponse = await apiService.completeAnalysis(textToAnalyze)
+      const realApiResponse = await apiService.completeAnalysis(textToAnalyze, 'estrito')
       console.log('Resposta do backend:', realApiResponse)
       
       // Verificar se a resposta contém dados reais
@@ -183,57 +183,78 @@ const AnalysisPage = () => {
       }
       
       // Processar dados reais do backend
-      const processExpandedResults = (apiData) => {
-        const expandedTerms = apiData.expanded_terms || {}
-        const contextClassification = apiData.context_classification || {}
-        const validationMetrics = apiData.validation_metrics || {}
-        const dreamContexts = apiData.dream_contexts || []
-        
-        // Criar nuvem de palavras expandida
-        const wordCloud = []
-        Object.entries(expandedTerms).forEach(([category, terms]) => {
-          Object.entries(terms).forEach(([term, frequency]) => {
-            if (term !== 'total' && frequency > 0) {
-              wordCloud.push({
-                word: term,
-                frequency: frequency,
-                category: category
-              })
-            }
+      const processExpandedResults = (resultsObj) => {
+        const aggregate = resultsObj.aggregate || {}
+        const byCanto = resultsObj.by_canto || {}
+
+        const contextClassification = aggregate.context_classification || {}
+        const validationMetrics = aggregate.validation_metrics || {}
+
+        // Somar termos encontrados por canto para distribuição
+        const cantoEntries = Object.entries(byCanto)
+        const cantoTotals = cantoEntries.map(([canto, info]) => ({
+          canto,
+          occurrences: info.semantic_expansion?.terms_found || 0
+        }))
+        const totalOccurrences = cantoTotals.reduce((s, c) => s + c.occurrences, 0) || 1
+        const cantoDistribution = cantoTotals.map(c => ({
+          canto: c.canto.replace('CANTO ', ''),
+          occurrences: c.occurrences,
+          percentage: Math.round((c.occurrences / totalOccurrences) * 100)
+        }))
+
+        // Construir nuvem de palavras agregando termos por canto
+        const termFreq = {}
+        cantoEntries.forEach(([_, info]) => {
+          const catMap = info.expanded_terms || {}
+          Object.entries(catMap).forEach(([category, terms]) => {
+            Object.entries(terms).forEach(([term, freq]) => {
+              if (term === 'total' || !freq) return
+              const key = `${term}__${category}`
+              termFreq[key] = (termFreq[key] || 0) + freq
+            })
           })
         })
-        
-        // Ordenar por frequência
-        wordCloud.sort((a, b) => b.frequency - a.frequency)
-        
-        // Gerar insights baseados nos dados reais
-        const insights = generateInsights(expandedTerms, contextClassification, validationMetrics, dreamContexts)
-        
+        const wordCloud = Object.entries(termFreq)
+          .map(([key, frequency]) => {
+            const [term, category] = key.split('__')
+            return { word: term, frequency, category }
+          })
+          .sort((a, b) => b.frequency - a.frequency)
+
+        // Contextos: juntar alguns dos primeiros por canto
+        const dreamContexts = cantoEntries.flatMap(([canto, info]) =>
+          (info.dream_contexts || []).slice(0, 3).map(ctx => ({ ...ctx, canto }))
+        )
+
+        // Insights com base nos dados agregados
+        const insights = generateInsights(
+          // expandedTerms agregado para compatibilidade
+          {},
+          contextClassification,
+          validationMetrics,
+          dreamContexts
+        )
+
         return {
-          totalWords: apiData.preprocessing?.words || textToAnalyze.split(' ').length,
-          uniqueWords: apiData.preprocessing?.unique_words || Math.floor(textToAnalyze.split(' ').length * 0.3),
-          dreamReferences: Object.values(contextClassification).reduce((sum, count) => sum + count, 0),
-          cantos: Math.floor(Math.random() * 10) + 1,
-          analysisTime: '9.1s',
-          confidence: Math.round(validationMetrics.confidence_score || 94),
+          totalWords: aggregate.preprocessing?.words || 0,
+          uniqueWords: aggregate.preprocessing?.unique_words || 0,
+          dreamReferences: Object.values(contextClassification).reduce((sum, v) => sum + (v || 0), 0),
+          cantos: aggregate.cantos_identified || cantoEntries.length || 0,
+          analysisTime: '',
+          confidence: Math.round(validationMetrics.confidence_score || 0),
           dreamTypes: {
-            onirico: contextClassification.onírico || 0,
-            profetico: contextClassification.profético || 0,
-            alegorico: contextClassification.alegórico || 0,
-            divino: contextClassification.divino || 0
+            onirico: contextClassification['onírico'] || 0,
+            profetico: contextClassification['profético'] || 0,
+            alegorico: contextClassification['alegórico'] || 0,
+            divino: contextClassification['divino'] || 0
           },
-          wordCloud: wordCloud.slice(0, 20), // Top 20 termos
-          expandedTerms: expandedTerms,
-          dreamContexts: dreamContexts,
-          validationMetrics: validationMetrics,
-          cantoDistribution: [
-            { canto: 'I', occurrences: Math.floor(Math.random() * 15) + 5, percentage: Math.floor(Math.random() * 20) + 10 },
-            { canto: 'II', occurrences: Math.floor(Math.random() * 12) + 3, percentage: Math.floor(Math.random() * 15) + 5 },
-            { canto: 'III', occurrences: Math.floor(Math.random() * 20) + 8, percentage: Math.floor(Math.random() * 25) + 15 },
-            { canto: 'IV', occurrences: Math.floor(Math.random() * 10) + 2, percentage: Math.floor(Math.random() * 12) + 3 },
-            { canto: 'V', occurrences: Math.floor(Math.random() * 15) + 5, percentage: Math.floor(Math.random() * 18) + 8 }
-          ],
-          insights: insights
+          wordCloud: wordCloud.slice(0, 20),
+          expandedTerms: {},
+          dreamContexts,
+          validationMetrics,
+          cantoDistribution,
+          insights
         }
       }
       

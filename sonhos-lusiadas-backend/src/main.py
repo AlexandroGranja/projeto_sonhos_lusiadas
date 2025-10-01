@@ -30,10 +30,10 @@ try:
     app.register_blueprint(analysis_bp, url_prefix='/api/analysis')
     app.register_blueprint(user_bp, url_prefix='/api/user')
     
-    print("✅ Blueprints registrados com sucesso!")
+    print("OK: Blueprints registrados com sucesso!")
     
 except ImportError as e:
-    print(f"❌ Erro ao importar blueprints: {e}")
+    print(f"ERRO: Erro ao importar blueprints: {e}")
     print("Criando rotas básicas...")
     
     @app.route('/api/analysis/health')
@@ -76,15 +76,16 @@ if __name__ == '__main__':
     # Configuração de debug
     debug = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
     
-    print("🚀 Iniciando servidor Sonhos Lusíadas...")
-    print(f"📁 Upload folder: {app.config['UPLOAD_FOLDER']}")
-    print(f"🔧 Debug mode: {debug}")
-    print(f"🌐 CORS origins: {cors_origins}")
+    print("INICIANDO: Servidor Sonhos Lusíadas...")
+    print(f"UPLOAD: Upload folder: {app.config['UPLOAD_FOLDER']}")
+    print(f"DEBUG: Debug mode: {debug}")
+    print(f"CORS: CORS origins: {cors_origins}")
     
     # Inicia o servidor
     app.run(
         host='0.0.0.0',
         port=5000,
         debug=debug,
-        threaded=True
+        threaded=True,
+        use_reloader=False
     )

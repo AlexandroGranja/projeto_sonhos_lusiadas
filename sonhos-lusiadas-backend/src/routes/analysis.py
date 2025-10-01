@@ -6,6 +6,8 @@ Rotas de análise do backend Sonhos Lusíadas
 import os
 import sys
 import logging
+import re
+import unicodedata
 from flask import Blueprint, request, jsonify, current_app
 from werkzeug.utils import secure_filename
 import json
@@ -14,10 +16,10 @@ import json
 try:
     import docx2txt
     DOCX2TXT_AVAILABLE = True
-    print("✅ docx2txt disponível para processamento de arquivos .doc")
+    print("OK: docx2txt disponivel para processamento de arquivos .doc")
 except ImportError:
     DOCX2TXT_AVAILABLE = False
-    print("⚠️ docx2txt não disponível - arquivos .doc podem não funcionar")
+    print("AVISO: docx2txt nao disponivel - arquivos .doc podem nao funcionar")
 
 # Adiciona o diretório pai ao path para importar módulos
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
@@ -37,6 +39,115 @@ def allowed_file(filename):
     """Verifica se o arquivo tem extensão permitida."""
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def remove_gutenberg_boilerplate(text: str) -> str:
+    """Remove cabeçalhos/rodapés padrão do Project Gutenberg e numerações soltas."""
+    if not isinstance(text, str):
+        return ''
+
+    start_markers = [
+        "*** START OF THIS PROJECT GUTENBERG EBOOK OS LUSÍADAS ***",
+        "*** START OF THE PROJECT GUTENBERG EBOOK OS LUSÍADAS ***"
+    ]
+    end_markers = [
+        "*** END OF THIS PROJECT GUTENBERG EBOOK OS LUSÍADAS ***",
+        "*** END OF THE PROJECT GUTENBERG EBOOK OS LUSÍADAS ***"
+    ]
+
+    start_idx = -1
+    end_idx = -1
+    for m in start_markers:
+        i = text.find(m)
+        if i != -1:
+            start_idx = i + len(m)
+            break
+    for m in end_markers:
+        i = text.find(m)
+        if i != -1:
+            end_idx = i
+            break
+
+    if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+        text = text[start_idx:end_idx]
+    elif start_idx != -1:
+        text = text[start_idx:]
+    elif end_idx != -1:
+        text = text[:end_idx]
+
+    # Normaliza quebras; preserva linhas numéricas (números de estrofe)
+    text = re.sub(r"\r\n?", "\n", text)
+    return text.strip()
+
+
+def split_cantos(text):
+    """Separa o texto em cantos CANTO I ... CANTO X.
+
+    Retorna um dicionário { 'CANTO I': texto, ..., 'CANTO X': texto }.
+    Caso não encontre marcadores de canto, retorna {'COMPLETO': text}.
+    """
+    if not text:
+        return {'COMPLETO': ''}
+
+    # Normaliza quebras e espaços para melhorar o split
+    normalized = re.sub(r"\r\n?", "\n", text)
+
+    # Suporta: CANTO I..X e CANTO PRIMEIRO..DÉCIMO (com e sem acento)
+    roman = r"(I|II|III|IV|V|VI|VII|VIII|IX|X)"
+    extenso = r"(PRIMEIRO|SEGUNDO|TERCEIRO|QUARTO|QUINTO|SEXTO|SE[TÍI]MO|OITAVO|NONO|D[ÉE]CIMO)"
+    pattern = re.compile(rf"(^|\n)\s*CANTO\s+({roman}|{extenso})\b", re.IGNORECASE)
+    parts = []
+    last_index = 0
+    matches = list(pattern.finditer(normalized))
+
+    if not matches:
+        return {'COMPLETO': text}
+
+    for idx, m in enumerate(matches):
+        if idx > 0:
+            prev = matches[idx - 1]
+            canto_roman = prev.group(2).upper()
+            canto_title = f"CANTO {canto_roman}"
+            parts.append((canto_title, normalized[last_index:m.start()].strip()))
+        last_index = m.end()
+
+    # Último bloco
+    last_match = matches[-1]
+    canto_marker = last_match.group(2).upper()
+    canto_title = f"CANTO {canto_marker}"
+    parts.append((canto_title, normalized[last_index:].strip()))
+
+    # Constrói dict, ignorando blocos vazios
+    result = {}
+    for title, content in parts:
+        if content:
+            result[title] = content
+
+    return result if result else {'COMPLETO': text}
+
+def normalize_text(text: str) -> str:
+    """Normaliza texto para comparação: minúsculas, remove acentos, espaçamentos básicos."""
+    if not isinstance(text, str):
+        return ''
+    lowered = text.lower()
+    # remove acentos
+    no_acc = unicodedata.normalize('NFKD', lowered)
+    no_acc = ''.join(ch for ch in no_acc if not unicodedata.combining(ch))
+    # normaliza espaços
+    no_acc = re.sub(r"\s+", " ", no_acc).strip()
+    return no_acc
+
+def build_term_pattern(term: str) -> re.Pattern:
+    """Cria regex com bordas de palavra para um termo já normalizado."""
+    term_norm = normalize_text(term)
+    # protege caracteres especiais
+    esc = re.escape(term_norm)
+    # bordas de palavra; permite termos compostos
+    return re.compile(rf"\b{esc}\b", re.IGNORECASE)
+
+def build_sonho_pattern() -> re.Pattern:
+    """Padrão específico para capturar 'sonho*' e variações."""
+    # Busca por: sonho, sonhos, sonhar, sonhando, sonhador, sonhante, sonhoso, etc.
+    return re.compile(r'\bsonh[a-z]*\b', re.IGNORECASE)
 
 @analysis_bp.route('/health', methods=['GET'])
 def health_check():
@@ -275,107 +386,187 @@ def download_results():
         logger.error(f"Erro no download: {e}")
         return jsonify({'error': 'Erro interno do servidor'}), 500
 
-# Dicionário expandido de termos relacionados
-EXPANDED_TERMS = {
+# Dicionários de termos
+EXPANDED_TERMS_FULL = {
     'onírico': [
-        'sonho', 'sonhar', 'sonhador', 'sonhante', 'sonhoso',
-        'pesadelo', 'pesadelar', 'pesadelante', 'pesadeloso',
-        'dormir', 'adormecer', 'despertar', 'desperto',
-        'sonolência', 'sonolento', 'sonolentamente',
-        'sonambulismo', 'sonambúlico', 'sonambular',
-        'insônia', 'insone', 'insoniamente', 'insoniar',
-        'soneca', 'sonecar', 'sonecante',
-        'repouso', 'repousar', 'repousante',
-        'descanso', 'descansar', 'descansante'
+        'sonho', 'sonhar', 'pesadelo',
+        'dormir', 'adormecer', 'despertar',
+        'sonolência', 'sonolento', 'repouso', 'repousar',
+        'descanso', 'descansar'
     ],
     'profético': [
-        'visão', 'visionário', 'visionar', 'visionante',
-        'profecia', 'profético', 'profetizar', 'profetizante',
-        'revelação', 'revelar', 'revelador', 'revelante',
-        'aparição', 'aparecer', 'aparecimento', 'aparente',
-        'oráculo', 'oracular', 'oracularmente',
-        'vaticínio', 'vaticinar', 'vaticinador', 'vaticinante',
-        'presságio', 'pressagiar', 'pressagiador',
-        'augúrio', 'augurar', 'augurador',
-        'predição', 'predizer', 'preditor'
+        'visão', 'profecia', 'revelação', 'aparição',
+        'oráculo', 'vaticínio', 'presságio', 'augúrio', 'predição'
     ],
     'alegórico': [
-        'sombra', 'sombreado', 'sombreadamente', 'sombreador',
-        'fantasia', 'fantasioso', 'fantasiosamente', 'fantasiar',
-        'ilusão', 'ilusório', 'ilusoriamente', 'ilusionar',
-        'metáfora', 'metafórico', 'metafóricamente',
-        'símbolo', 'simbólico', 'simbolicamente', 'simbolizar',
-        'alegoria', 'alegórico', 'alegoricamente', 'alegorizar',
-        'emblema', 'emblemático', 'emblematicamente',
-        'figura', 'figurado', 'figuradamente', 'figurar',
-        'representação', 'representar', 'representante'
+        'sombra', 'fantasia', 'ilusão', 'metáfora', 'símbolo', 'alegoria', 'figura'
     ],
     'divino': [
-        'glória', 'glorioso', 'gloriosamente', 'glorificar',
-        'divino', 'divinamente', 'divindade', 'divinizar',
-        'celestial', 'celestialmente', 'celestialidade',
-        'sobrenatural', 'sobrenaturalmente', 'sobrenaturalidade',
-        'milagre', 'milagroso', 'milagrosamente', 'milagrar',
-        'sagrado', 'sagradamente', 'sacralidade', 'sacralizar',
-        'santo', 'santamente', 'santidade', 'santificar',
-        'bendito', 'benditamente', 'bendizer',
-        'abençoado', 'abençoar', 'abençoador',
-        'miraculoso', 'miraculosamente'
+        'glória', 'glorioso', 'divino', 'celestial', 'sobrenatural',
+        'milagre', 'milagroso', 'sagrado', 'santo', 'bendito', 'abençoado', 'miraculoso'
     ]
 }
 
-def count_expanded_terms(text):
-    """Conta termos expandidos no texto."""
-    results = {}
-    text_lower = text.lower()
-    
-    print(f"DEBUG: Analisando texto: {text_lower[:100]}...")
-    print(f"DEBUG: Tamanho do texto: {len(text_lower)} caracteres")
-    
-    for category, terms in EXPANDED_TERMS.items():
+EXPANDED_TERMS_STRICT = {
+    'onírico': [
+        'sonho', 'sonhos', 'sonhar', 'sonhando', 'sonhador', 'sonhante', 'sonhoso', 'sonhava', 'sonhei', 'sonharia',
+        'pesadelo', 'pesadelos', 'pesadelar', 'pesadelando', 'pesadelava',
+        'dormir', 'dormindo', 'dormia', 'dormiu', 'dormirá', 'adormecer', 'adormecendo', 'adormecia', 'adormeceu',
+        'despertar', 'despertando', 'despertava', 'despertou', 'despertará',
+        'repouso', 'repousar', 'repousando', 'repousava', 'repousou',
+        'descanso', 'descansar', 'descansando', 'descansava', 'descansou',
+        'sonolência', 'sonolento', 'sonolentamente',
+        'sonambulismo', 'sonambúlico', 'sonambular',
+        'insônia', 'insone', 'insoniamente',
+        'soneca', 'sonecar', 'sonecante'
+    ],
+    'profético': [
+        'visão', 'visões', 'visionário', 'visionar', 'visionando', 'visionava', 'visionou',
+        'profecia', 'profécias', 'profético', 'profetizar', 'profetizando', 'profetizava', 'profetizou',
+        'revelação', 'revelações', 'revelar', 'revelando', 'revelava', 'revelou',
+        'aparição', 'aparições', 'aparecer', 'aparecendo', 'aparecia', 'apareceu',
+        'oráculo', 'oráculos', 'oracular', 'oracularmente',
+        'presságio', 'presságios', 'pressagiar', 'pressagiando', 'pressagiava', 'pressagiou',
+        'vaticínio', 'vaticínios', 'vaticinar', 'vaticinando', 'vaticinava', 'vaticinou',
+        'augúrio', 'augúrios', 'augurar', 'augurando', 'augurava', 'augurou'
+    ]
+}
+
+def get_terms(mode: str):
+    """Retorna dicionário de termos por modo (estrito ou completo)."""
+    if (mode or '').lower() == 'estrito':
+        return EXPANDED_TERMS_STRICT
+    return EXPANDED_TERMS_FULL
+
+def count_expanded_terms(text: str, terms_to_use: dict) -> dict:
+    """Conta termos expandidos no texto dado um conjunto de termos."""
+    results: dict = {}
+    text_norm = normalize_text(text)
+    sonho_pattern = build_sonho_pattern()
+
+    for category, terms in terms_to_use.items():
         results[category] = {}
         total_count = 0
         
+        # Busca específica por "sonho*" para categoria onírica
+        if category == 'onírico':
+            sonho_matches = sonho_pattern.findall(text_norm)
+            if sonho_matches:
+                # Agrupa variações de sonho
+                sonho_variations = {}
+                for match in sonho_matches:
+                    sonho_variations[match] = sonho_variations.get(match, 0) + 1
+                
+                for variation, count in sonho_variations.items():
+                    results[category][variation] = count
+                    total_count += count
+        
+        # Busca pelos outros termos
         for term in terms:
-            count = text_lower.count(term.lower())
+            pat = build_term_pattern(term)
+            count = len(pat.findall(text_norm))
             if count > 0:
                 results[category][term] = count
                 total_count += count
-                print(f"DEBUG: Encontrado '{term}': {count} vezes")
-        
         results[category]['total'] = total_count
-        print(f"DEBUG: {category}: {total_count} termos encontrados")
-    
-    print(f"DEBUG: Resultado final: {results}")
     return results
 
-def analyze_dream_contexts(text):
-    """Analisa contextos de sonhos no texto."""
-    # Dividir texto em sentenças
-    sentences = text.split('.')
-    dream_contexts = []
-    
-    for i, sentence in enumerate(sentences):
-        sentence_lower = sentence.lower()
-        
-        # Verificar se contém termos relacionados a sonhos
+def analyze_dream_contexts(text: str, terms_to_use: dict) -> list:
+    """Analisa contextos e identifica número de estrofe quando presente na linha anterior.
+
+    Heurística de estrofe: muitas edições do Gutenberg apresentam números de estrofe
+    em uma linha sozinha antes do bloco de versos. Vamos propagar o último número
+    visto para as linhas seguintes até surgir um novo número.
+    """
+    lines = re.split(r"\n+", text)
+    dream_contexts: list = []
+
+    current_stanza = None
+    buffer_sentence = ''
+    sonho_pattern = build_sonho_pattern()
+
+    def flush_buffer(idx: int, stanza_num):
+        nonlocal buffer_sentence
+        s = buffer_sentence.strip()
+        if not s:
+            return None
+        s_norm = normalize_text(s)
         dream_terms = []
-        for category, terms in EXPANDED_TERMS.items():
-            for term in terms:
-                if term.lower() in sentence_lower:
-                    dream_terms.append({
-                        'term': term,
-                        'category': category
-                    })
         
+        # Busca específica por "sonho*" primeiro
+        sonho_matches = sonho_pattern.findall(s_norm)
+        if sonho_matches:
+            print(f"DEBUG: Encontrado 'sonho*' na estrofe {stanza_num}: {sonho_matches} - '{s[:50]}...'")
+            for match in sonho_matches:
+                excerpt = s if len(s) <= 220 else (s[:220] + '...')
+                dream_terms.append({'term': match, 'category': 'onírico', 'excerpt': excerpt})
+        
+        # Busca pelos outros termos
+        for category, terms in terms_to_use.items():
+            for term in terms:
+                if build_term_pattern(term).search(s_norm):
+                    excerpt = s if len(s) <= 220 else (s[:220] + '...')
+                    dream_terms.append({'term': term, 'category': category, 'excerpt': excerpt})
+        
+        buffer_sentence = ''
         if dream_terms:
-            dream_contexts.append({
-                'sentence': sentence.strip(),
-                'position': i,
+            return {
+                'sentence': s,
+                'position': idx,
+                'stanza': stanza_num,
                 'terms': dream_terms,
                 'context_type': classify_context_type(dream_terms)
-            })
-    
+            }
+        return None
+
+    idx = 0
+    for raw in lines:
+        line = raw.strip()
+        if not line:
+            # quebra de bloco: fecha buffer como sentença
+            ctx = flush_buffer(idx, current_stanza)
+            if ctx:
+                dream_contexts.append(ctx)
+                idx += 1
+            continue
+
+        # Detecta linha que é somente número (possível estrofe)
+        if re.fullmatch(r"\d+", line):
+            # fecha buffer antes de mudar estrofe
+            ctx = flush_buffer(idx, current_stanza)
+            if ctx:
+                dream_contexts.append(ctx)
+                idx += 1
+            current_stanza = int(line)
+            print(f"DEBUG: Detectada estrofe {current_stanza}")
+            continue
+        
+        # Também detecta números no início da linha seguidos de espaço
+        stanza_match = re.match(r"^(\d+)\s", line)
+        if stanza_match:
+            # fecha buffer antes de mudar estrofe
+            ctx = flush_buffer(idx, current_stanza)
+            if ctx:
+                dream_contexts.append(ctx)
+                idx += 1
+            current_stanza = int(stanza_match.group(1))
+            print(f"DEBUG: Detectada estrofe {current_stanza} no início da linha")
+            # Remove o número do início da linha
+            line = line[stanza_match.end():].strip()
+            if not line:
+                continue
+
+        # acumula verso na sentença corrente
+        if buffer_sentence:
+            buffer_sentence += ' ' + line
+        else:
+            buffer_sentence = line
+
+    # flush final
+    ctx = flush_buffer(idx, current_stanza)
+    if ctx:
+        dream_contexts.append(ctx)
+
     return dream_contexts
 
 def classify_context_type(terms):
@@ -391,91 +582,160 @@ def classify_context_type(terms):
     else:
         return 'onírico'
 
-def calculate_analysis_metrics(text, results):
-    """Calcula métricas de validação da análise."""
+def calculate_analysis_metrics(text: str, aggregated: dict) -> dict:
+    """Calcula métricas de validação globais a partir do texto e agregados."""
     total_words = len(text.split())
-    total_dream_terms = sum(category['total'] for category in results['expanded_terms'].values())
-    
+    terms_found = aggregated.get('semantic_expansion', {}).get('terms_found', 0)
+    coverage = (terms_found / total_words) if total_words > 0 else 0
+    confidence = min(95, coverage * 1000) if total_words > 0 else 0
     return {
-        'coverage': total_dream_terms / total_words if total_words > 0 else 0,
+        'coverage': coverage,
         'total_words': total_words,
-        'dream_terms_found': total_dream_terms,
-        'categories_covered': len([cat for cat in results['expanded_terms'].values() if cat['total'] > 0]),
-        'confidence_score': min(95, (total_dream_terms / total_words) * 1000) if total_words > 0 else 0
+        'dream_terms_found': terms_found,
+        'confidence_score': confidence
     }
 
 @analysis_bp.route('/complete-analysis', methods=['POST'])
 def complete_analysis():
-    """Análise completa do texto com metodologia expandida."""
+    """Análise completa do texto com separação por cantos e modo estrito opcional."""
     try:
         data = request.get_json()
         text = data.get('text', '')
-        
+        mode = (data.get('mode', 'default') or 'default').lower()  # 'default' ou 'estrito'
+
         print(f"DEBUG BACKEND: Texto recebido: {text[:100]}...")
         print(f"DEBUG BACKEND: Tamanho do texto: {len(text)} caracteres")
-        
+        print(f"DEBUG BACKEND: Modo: {mode}")
+
         if not text:
             return jsonify({'error': 'Texto é obrigatório'}), 400
-        
-        # Análise expandida de termos
-        expanded_terms = count_expanded_terms(text)
-        
-        # Análise de contextos
-        dream_contexts = analyze_dream_contexts(text)
-        
-        # Classificação por tipos
-        context_classification = {
-            'onírico': len([ctx for ctx in dream_contexts if ctx['context_type'] == 'onírico']),
-            'profético': len([ctx for ctx in dream_contexts if ctx['context_type'] == 'profético']),
-            'alegórico': len([ctx for ctx in dream_contexts if ctx['context_type'] == 'alegórico']),
-            'divino': len([ctx for ctx in dream_contexts if ctx['context_type'] == 'divino'])
-        }
-        
-        # Processamento do texto
-        preprocessing = {
-            'original_length': len(text),
-            'processed_length': len(text.lower().strip()),
-            'sentences': text.count('.') + text.count('!') + text.count('?'),
-            'words': len(text.split()),
-            'unique_words': len(set(text.lower().split()))
-        }
-        
-        # Resultados completos
-        results = {
-            'preprocessing': preprocessing,
-            'expanded_terms': expanded_terms,
-            'dream_contexts': dream_contexts,
-            'context_classification': context_classification,
-            'semantic_expansion': {
-                'total_categories': len(EXPANDED_TERMS),
-                'total_terms_searched': sum(len(terms) for terms in EXPANDED_TERMS.values()),
-                'terms_found': sum(cat['total'] for cat in expanded_terms.values()),
-                'coverage_percentage': (sum(cat['total'] for cat in expanded_terms.values()) / preprocessing['words']) * 100
-            },
-            'visualizations': {
-                'word_frequency': True,
-                'context_distribution': True,
-                'dream_types': True,
-                'expanded_analysis': True
+
+        # Limpa boilerplate do Gutenberg
+        cleaned_text = remove_gutenberg_boilerplate(text)
+
+        # Define termos conforme modo
+        terms_to_use = get_terms(mode)
+
+        # Separa por cantos
+        cantos = split_cantos(cleaned_text)
+
+        per_canto_results = {}
+        aggregate_counts = {'onírico': 0, 'profético': 0, 'alegórico': 0, 'divino': 0}
+        aggregate_terms_found = 0
+        aggregate_words = 0
+        aggregate_unique_words = set()
+        aggregate_sentences = 0
+
+        # Acúmulos para compatibilidade legada
+        legacy_expanded_terms: dict = {}
+        legacy_dream_contexts: list = []
+
+        for canto_title, canto_text in cantos.items():
+            canto_expanded = count_expanded_terms(canto_text, terms_to_use)
+            canto_contexts = analyze_dream_contexts(canto_text, terms_to_use)
+            # Estrofes com ocorrência
+            stanzas_with_hits = sorted({ctx.get('stanza') for ctx in canto_contexts if ctx.get('stanza') is not None})
+            canto_classification = {
+                'onírico': len([ctx for ctx in canto_contexts if ctx['context_type'] == 'onírico']),
+                'profético': len([ctx for ctx in canto_contexts if ctx['context_type'] == 'profético']),
+                'alegórico': len([ctx for ctx in canto_contexts if ctx['context_type'] == 'alegórico']),
+                'divino': len([ctx for ctx in canto_contexts if ctx['context_type'] == 'divino'])
             }
+            canto_pre = {
+                'original_length': len(canto_text),
+                'processed_length': len(normalize_text(canto_text)),
+                'sentences': len(re.split(r"(?<=[\.!?])\s+|\n+", canto_text)),
+                'words': len(canto_text.split()),
+                'unique_words': len(set(normalize_text(canto_text).split()))
+            }
+
+            per_canto_results[canto_title] = {
+                'preprocessing': canto_pre,
+                'expanded_terms': canto_expanded,
+                'dream_contexts': canto_contexts,
+                'context_classification': canto_classification,
+                'stanzas': stanzas_with_hits,
+                'semantic_expansion': {
+                    'total_categories': len(terms_to_use),
+                    'total_terms_searched': sum(len(terms) for terms in terms_to_use.values()),
+                    'terms_found': sum(cat['total'] for cat in canto_expanded.values()),
+                    'coverage_percentage': (sum(cat['total'] for cat in canto_expanded.values()) / canto_pre['words']) * 100 if canto_pre['words'] > 0 else 0
+                }
+            }
+
+            # Agrega
+            for k in aggregate_counts.keys():
+                aggregate_counts[k] += canto_classification.get(k, 0)
+            aggregate_terms_found += sum(cat.get('total', 0) for cat in canto_expanded.values())
+            aggregate_words += canto_pre['words']
+            aggregate_unique_words.update(set(normalize_text(canto_text).split()))
+            aggregate_sentences += canto_pre['sentences']
+
+            # Compatibilidade legada: somar termos por categoria/termo
+            for category, terms in canto_expanded.items():
+                if category not in legacy_expanded_terms:
+                    legacy_expanded_terms[category] = {}
+                for term, cnt in terms.items():
+                    if term == 'total':
+                        continue
+                    legacy_expanded_terms[category][term] = legacy_expanded_terms[category].get(term, 0) + int(cnt)
+
+            # Compatibilidade legada: juntar contextos e anotar o canto
+            for ctx in canto_contexts:
+                ctx_with_canto = dict(ctx)
+                ctx_with_canto['canto'] = canto_title
+                legacy_dream_contexts.append(ctx_with_canto)
+
+        aggregate_results = {
+            'preprocessing': {
+                'original_length': len(cleaned_text),
+                'processed_length': len(normalize_text(cleaned_text)),
+                'sentences': aggregate_sentences,
+                'words': aggregate_words,
+                'unique_words': len(aggregate_unique_words)
+            },
+            'context_classification': aggregate_counts,
+            'semantic_expansion': {
+                'total_categories': len(terms_to_use),
+                'total_terms_searched': sum(len(terms) for terms in terms_to_use.values()),
+                'terms_found': aggregate_terms_found,
+                'coverage_percentage': (aggregate_terms_found / aggregate_words) * 100 if aggregate_words > 0 else 0
+            },
+            'cantos_identified': len(cantos),
+            # Novo: mapa de estrofes por canto
+            'stanzas_by_canto': {k: v.get('stanzas', []) for k, v in per_canto_results.items()}
         }
-        
-        # Métricas de validação
-        metrics = calculate_analysis_metrics(text, results)
-        results['validation_metrics'] = metrics
-        
+
+        # Métricas globais
+        aggregate_results['validation_metrics'] = calculate_analysis_metrics(cleaned_text, aggregate_results)
+
+        # Estrutura de resposta com detalhamento e campos legados para o frontend atual
+        legacy_flat = {
+            'preprocessing': aggregate_results['preprocessing'],
+            'expanded_terms': legacy_expanded_terms,
+            'context_classification': aggregate_results['context_classification'],
+            'validation_metrics': aggregate_results['validation_metrics'],
+            'dream_contexts': legacy_dream_contexts,
+        }
+
         return jsonify({
             'message': 'Análise expandida realizada com sucesso',
-            'results': results,
+            'results': {
+                'by_canto': per_canto_results,
+                'aggregate': aggregate_results,
+                # Campos legados (compat):
+                **legacy_flat
+            },
             'methodology': {
                 'name': 'Análise Semântica Expandida dos Lusíadas',
                 'version': '2.0',
                 'description': 'Metodologia completa para análise de temas oníricos com expansão semântica',
-                'categories_analyzed': list(EXPANDED_TERMS.keys()),
-                'total_terms': sum(len(terms) for terms in EXPANDED_TERMS.values())
+                'categories_analyzed': list(terms_to_use.keys()),
+                'total_terms': sum(len(terms) for terms in terms_to_use.values()),
+                'mode': mode
             }
         })
-        
+
     except Exception as e:
         logger.error(f"Erro na análise completa: {e}")
         return jsonify({'error': 'Erro interno do servidor'}), 500
