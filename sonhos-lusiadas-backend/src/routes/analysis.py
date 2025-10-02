@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
 Rotas de análise do backend Sonhos Lusíadas
+Implementação com técnicas NLP tradicionais focadas no termo "sono"
 """
 
 import os
@@ -24,6 +25,16 @@ except ImportError:
 
 # Adiciona o diretório pai ao path para importar módulos
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+
+# Importa módulos NLP tradicionais
+try:
+    from traditional_nlp import TraditionalNLPAnalyzer, create_traditional_analyzer
+    from gemini_validator import GeminiValidator, create_gemini_validator
+    TRADITIONAL_NLP_AVAILABLE = True
+    print("OK: Módulos NLP tradicionais carregados")
+except ImportError as e:
+    TRADITIONAL_NLP_AVAILABLE = False
+    print(f"AVISO: Erro ao carregar módulos NLP tradicionais: {e}")
 
 # Configuração de logging
 logging.basicConfig(level=logging.INFO)
@@ -281,23 +292,47 @@ def preprocess_text():
 
 @analysis_bp.route('/expand-semantic', methods=['POST'])
 def expand_semantic():
-    """Expansão semântica de vocabulário."""
+    """Expansão semântica usando técnicas NLP tradicionais focadas no sono."""
     try:
         data = request.get_json()
         context = data.get('context', 'Os Lusíadas de Camões')
         
-        # Simulação de expansão semântica
-        expanded_words = [
-            'sonho', 'pesadelo', 'visão', 'sombra', 'glória',
-            'fantasia', 'ilusão', 'devaneio', 'quimera', 'miragem',
-            'aparição', 'revelação', 'profecia', 'presságio', 'augúrio'
-        ]
+        if not TRADITIONAL_NLP_AVAILABLE:
+            return jsonify({'error': 'Módulos NLP tradicionais não disponíveis'}), 500
+        
+        # Cria analisador NLP tradicional
+        analyzer = create_traditional_analyzer()
+        
+        # Foca especificamente em termos relacionados ao sono
+        sleep_terms = analyzer.sleep_terms
+        
+        # Expande termos usando análise de coocorrência se texto fornecido
+        text = data.get('text', '')
+        if text:
+            cooccurrence = analyzer.analyze_cooccurrence(text)
+            # Adiciona termos co-ocorrentes mais frequentes
+            expanded_terms = []
+            for term, cooc_terms in cooccurrence.items():
+                if term in ['sono', 'sonho', 'dormir']:
+                    top_cooc = sorted(cooc_terms.items(), key=lambda x: x[1], reverse=True)[:5]
+                    expanded_terms.extend([t[0] for t in top_cooc])
+        else:
+            expanded_terms = []
+        
+        # Combina termos base com expansão
+        all_terms = []
+        for category, terms in sleep_terms.items():
+            all_terms.extend(terms)
+        all_terms.extend(expanded_terms)
+        all_terms = list(set(all_terms))  # Remove duplicatas
         
         return jsonify({
-            'message': 'Expansão semântica realizada',
+            'message': 'Expansão semântica realizada com técnicas NLP tradicionais',
             'context': context,
-            'expanded_words': expanded_words,
-            'count': len(expanded_words)
+            'expanded_words': all_terms,
+            'count': len(all_terms),
+            'method': 'traditional_nlp',
+            'focus': 'sono_e_termos_relacionados'
         })
         
     except Exception as e:
@@ -306,30 +341,42 @@ def expand_semantic():
 
 @analysis_bp.route('/analyze-contexts', methods=['POST'])
 def analyze_contexts():
-    """Análise de contextos no texto."""
+    """Análise de contextos usando técnicas NLP tradicionais focadas no sono."""
     try:
         data = request.get_json()
         text = data.get('text', '')
         words = data.get('words', [])
         
-        if not text or not words:
-            return jsonify({'error': 'Texto e palavras são obrigatórios'}), 400
+        if not text:
+            return jsonify({'error': 'Texto é obrigatório'}), 400
         
-        # Simulação de análise de contextos
-        contexts = []
-        for word in words:
-            if word in text.lower():
-                contexts.append({
-                    'word': word,
-                    'context': f"Contexto encontrado para '{word}'",
-                    'type': 'onírico',
-                    'confidence': 0.85
-                })
+        if not TRADITIONAL_NLP_AVAILABLE:
+            return jsonify({'error': 'Módulos NLP tradicionais não disponíveis'}), 500
+        
+        # Cria analisador NLP tradicional
+        analyzer = create_traditional_analyzer()
+        
+        # Analisa padrões de sonhos no texto
+        dream_patterns = analyzer.analyze_dream_patterns(text)
+        
+        # Extrai contextos relacionados ao sono
+        sleep_contexts = dream_patterns.get('classified_contexts', [])
+        
+        # Valida com Gemini se disponível
+        validator = create_gemini_validator()
+        if validator.available:
+            sleep_contexts = validator.validate_batch(sleep_contexts)
         
         return jsonify({
-            'message': 'Análise de contextos realizada',
-            'contexts': contexts,
-            'total': len(contexts)
+            'message': 'Análise de contextos realizada com técnicas NLP tradicionais',
+            'contexts': sleep_contexts,
+            'total': len(sleep_contexts),
+            'method': 'traditional_nlp',
+            'focus': 'sono_e_termos_relacionados',
+            'validation': {
+                'gemini_available': validator.available,
+                'summary': validator.get_validation_summary(sleep_contexts) if validator.available else None
+            }
         })
         
     except Exception as e:
@@ -404,7 +451,7 @@ def export_detailed_report():
             return jsonify({
                 'message': 'Relatório CSV gerado com sucesso',
                 'content': csv_content,
-                'filename': f'relatorio_detalhado_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
+                'filename': f'visoes_oniricas_epopeia_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
             })
         
         elif export_format == 'pdf':
@@ -413,7 +460,7 @@ def export_detailed_report():
             return jsonify({
                 'message': 'Relatório PDF gerado com sucesso',
                 'content': pdf_content,
-                'filename': f'relatorio_detalhado_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf'
+                'filename': f'visoes_oniricas_epopeia_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf'
             })
         
         else:
@@ -459,7 +506,7 @@ def generate_pdf_report(analysis_data):
     <html>
     <head>
         <meta charset="UTF-8">
-        <title>Relatório Detalhado - Análise de Sonhos em Os Lusíadas</title>
+        <title>Visões Oníricas da Epopeia Lusitana</title>
         <style>
             body {{ font-family: Arial, sans-serif; margin: 20px; }}
             .header {{ text-align: center; margin-bottom: 30px; }}
@@ -471,8 +518,7 @@ def generate_pdf_report(analysis_data):
     </head>
     <body>
         <div class="header">
-            <h1>Relatório Detalhado - Análise de Sonhos em Os Lusíadas</h1>
-            <p>Relatório gerado em {datetime.now().strftime("%d/%m/%Y às %H:%M")}</p>
+            <h1>Visões Oníricas da Epopeia Lusitana</h1>
         </div>
         
         <div class="summary">
@@ -778,11 +824,11 @@ def calculate_analysis_metrics(text: str, aggregated: dict) -> dict:
 
 @analysis_bp.route('/complete-analysis', methods=['POST'])
 def complete_analysis():
-    """Análise completa do texto com separação por cantos e modo estrito opcional."""
+    """Análise completa usando técnicas NLP tradicionais focadas no sono."""
     try:
         data = request.get_json()
         text = data.get('text', '')
-        mode = (data.get('mode', 'default') or 'default').lower()  # 'default' ou 'estrito'
+        mode = (data.get('mode', 'traditional') or 'traditional').lower()
 
         print(f"DEBUG BACKEND: Texto recebido: {text[:100]}...")
         print(f"DEBUG BACKEND: Tamanho do texto: {len(text)} caracteres")
@@ -791,17 +837,21 @@ def complete_analysis():
         if not text:
             return jsonify({'error': 'Texto é obrigatório'}), 400
 
+        if not TRADITIONAL_NLP_AVAILABLE:
+            return jsonify({'error': 'Módulos NLP tradicionais não disponíveis'}), 500
+
         # Limpa boilerplate do Gutenberg
         cleaned_text = remove_gutenberg_boilerplate(text)
 
-        # Define termos conforme modo
-        terms_to_use = get_terms(mode)
+        # Cria analisador NLP tradicional
+        analyzer = create_traditional_analyzer()
+        validator = create_gemini_validator()
 
         # Separa por cantos
         cantos = split_cantos(cleaned_text)
 
         per_canto_results = {}
-        aggregate_counts = {'onírico': 0, 'profético': 0, 'alegórico': 0, 'divino': 0}
+        aggregate_counts = {'onírico': 0, 'profético': 0, 'alegórico': 0, 'divino': 0, 'ilusório': 0}
         aggregate_terms_found = 0
         aggregate_words = 0
         aggregate_unique_words = set()
@@ -812,16 +862,27 @@ def complete_analysis():
         legacy_dream_contexts: list = []
 
         for canto_title, canto_text in cantos.items():
-            canto_expanded = count_expanded_terms(canto_text, terms_to_use)
-            canto_contexts = analyze_dream_contexts(canto_text, terms_to_use)
+            # Analisa padrões de sonhos usando NLP tradicional
+            dream_patterns = analyzer.analyze_dream_patterns(canto_text)
+            
+            # Extrai contextos relacionados ao sono
+            sleep_contexts = dream_patterns.get('classified_contexts', [])
+            
+            # Valida com Gemini se disponível
+            if validator.available:
+                sleep_contexts = validator.validate_batch(sleep_contexts)
+            
+            # Conta termos por categoria
+            canto_classification = {'onírico': 0, 'profético': 0, 'alegórico': 0, 'divino': 0, 'ilusório': 0}
+            for ctx in sleep_contexts:
+                classification = ctx.get('classification', 'onírico')
+                if classification in canto_classification:
+                    canto_classification[classification] += 1
+            
             # Estrofes com ocorrência
-            stanzas_with_hits = sorted({ctx.get('stanza') for ctx in canto_contexts if ctx.get('stanza') is not None})
-            canto_classification = {
-                'onírico': len([ctx for ctx in canto_contexts if ctx['context_type'] == 'onírico']),
-                'profético': len([ctx for ctx in canto_contexts if ctx['context_type'] == 'profético']),
-                'alegórico': len([ctx for ctx in canto_contexts if ctx['context_type'] == 'alegórico']),
-                'divino': len([ctx for ctx in canto_contexts if ctx['context_type'] == 'divino'])
-            }
+            stanzas_with_hits = sorted({ctx.get('stanza') for ctx in sleep_contexts if ctx.get('stanza') is not None})
+            
+            # Pré-processamento
             canto_pre = {
                 'original_length': len(canto_text),
                 'processed_length': len(normalize_text(canto_text)),
@@ -830,39 +891,45 @@ def complete_analysis():
                 'unique_words': len(set(normalize_text(canto_text).split()))
             }
 
+            # Conta termos encontrados
+            sleep_terms_found = dream_patterns.get('sleep_terms', {})
+            total_terms_found = sum(len(terms) for terms in sleep_terms_found.values())
+
             per_canto_results[canto_title] = {
                 'preprocessing': canto_pre,
-                'expanded_terms': canto_expanded,
-                'dream_contexts': canto_contexts,
+                'sleep_terms': sleep_terms_found,
+                'dream_contexts': sleep_contexts,
                 'context_classification': canto_classification,
                 'stanzas': stanzas_with_hits,
+                'cooccurrence': dream_patterns.get('cooccurrence', {}),
+                'similarity': dream_patterns.get('similarity', {}),
                 'semantic_expansion': {
-                    'total_categories': len(terms_to_use),
-                    'total_terms_searched': sum(len(terms) for terms in terms_to_use.values()),
-                    'terms_found': sum(cat['total'] for cat in canto_expanded.values()),
-                    'coverage_percentage': (sum(cat['total'] for cat in canto_expanded.values()) / canto_pre['words']) * 100 if canto_pre['words'] > 0 else 0
+                    'total_categories': len(analyzer.categories),
+                    'total_terms_searched': sum(len(terms) for terms in analyzer.sleep_terms.values()),
+                    'terms_found': total_terms_found,
+                    'coverage_percentage': (total_terms_found / canto_pre['words']) * 100 if canto_pre['words'] > 0 else 0
                 }
             }
 
             # Agrega
             for k in aggregate_counts.keys():
                 aggregate_counts[k] += canto_classification.get(k, 0)
-            aggregate_terms_found += sum(cat.get('total', 0) for cat in canto_expanded.values())
+            aggregate_terms_found += total_terms_found
             aggregate_words += canto_pre['words']
             aggregate_unique_words.update(set(normalize_text(canto_text).split()))
             aggregate_sentences += canto_pre['sentences']
 
             # Compatibilidade legada: somar termos por categoria/termo
-            for category, terms in canto_expanded.items():
+            for category, terms in sleep_terms_found.items():
                 if category not in legacy_expanded_terms:
                     legacy_expanded_terms[category] = {}
-                for term, cnt in terms.items():
-                    if term == 'total':
-                        continue
-                    legacy_expanded_terms[category][term] = legacy_expanded_terms[category].get(term, 0) + int(cnt)
+                for term_data in terms:
+                    term = term_data.get('term', '')
+                    if term:
+                        legacy_expanded_terms[category][term] = legacy_expanded_terms[category].get(term, 0) + 1
 
             # Compatibilidade legada: juntar contextos e anotar o canto
-            for ctx in canto_contexts:
+            for ctx in sleep_contexts:
                 ctx_with_canto = dict(ctx)
                 ctx_with_canto['canto'] = canto_title
                 legacy_dream_contexts.append(ctx_with_canto)
@@ -877,14 +944,17 @@ def complete_analysis():
             },
             'context_classification': aggregate_counts,
             'semantic_expansion': {
-                'total_categories': len(terms_to_use),
-                'total_terms_searched': sum(len(terms) for terms in terms_to_use.values()),
+                'total_categories': len(analyzer.categories),
+                'total_terms_searched': sum(len(terms) for terms in analyzer.sleep_terms.values()),
                 'terms_found': aggregate_terms_found,
                 'coverage_percentage': (aggregate_terms_found / aggregate_words) * 100 if aggregate_words > 0 else 0
             },
             'cantos_identified': len(cantos),
-            # Novo: mapa de estrofes por canto
-            'stanzas_by_canto': {k: v.get('stanzas', []) for k, v in per_canto_results.items()}
+            'stanzas_by_canto': {k: v.get('stanzas', []) for k, v in per_canto_results.items()},
+            'validation': {
+                'gemini_available': validator.available,
+                'summary': validator.get_validation_summary(legacy_dream_contexts) if validator.available else None
+            }
         }
 
         # Métricas globais
@@ -900,7 +970,7 @@ def complete_analysis():
         }
 
         return jsonify({
-            'message': 'Análise expandida realizada com sucesso',
+            'message': 'Análise completa realizada com técnicas NLP tradicionais',
             'results': {
                 'by_canto': per_canto_results,
                 'aggregate': aggregate_results,
@@ -908,12 +978,14 @@ def complete_analysis():
                 **legacy_flat
             },
             'methodology': {
-                'name': 'Análise Semântica Expandida dos Lusíadas',
-                'version': '2.0',
-                'description': 'Metodologia completa para análise de temas oníricos com expansão semântica',
-                'categories_analyzed': list(terms_to_use.keys()),
-                'total_terms': sum(len(terms) for terms in terms_to_use.values()),
-                'mode': mode
+                'name': 'Análise NLP Tradicional dos Lusíadas - Foco no Sono',
+                'version': '3.0',
+                'description': 'Metodologia com técnicas NLP tradicionais focada especificamente no termo "sono"',
+                'categories_analyzed': list(analyzer.categories.keys()),
+                'total_terms': sum(len(terms) for terms in analyzer.sleep_terms.values()),
+                'mode': mode,
+                'focus': 'sono_e_termos_relacionados',
+                'techniques': ['tokenization', 'lemmatization', 'pos_tagging', 'cooccurrence', 'similarity', 'pattern_matching']
             }
         })
 

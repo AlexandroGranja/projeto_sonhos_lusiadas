@@ -1,4 +1,4 @@
-# 🌙 Lusíadas Oníricos: Análise Literária com IA
+# 🌙 Visões Oníricas da Epopeia Lusitana: Análise Literária com IA
 
 [![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://python.org)
 [![React](https://img.shields.io/badge/React-18+-61dafb.svg)](https://reactjs.org)
@@ -11,7 +11,7 @@
 
 ## 📖 Sobre o Projeto
 
-O **Lusíadas Oníricos** é uma ferramenta de software completa para análise literária do tema "sonho" na obra *Os Lusíadas*, de Luís de Camões. A aplicação combina técnicas avançadas de **Processamento de Linguagem Natural (NLP)** com modelos de linguagem de última geração para oferecer uma plataforma robusta de pesquisa literária.
+O **Visões Oníricas da Epopeia Lusitana** é uma ferramenta de software completa para análise literária do tema "sonho" na obra *Os Lusíadas*, de Luís de Camões. A aplicação combina técnicas avançadas de **Processamento de Linguagem Natural (NLP)** com modelos de linguagem de última geração para oferecer uma plataforma robusta de pesquisa literária.
 
 ### 🎯 Funcionalidades Principais
 
@@ -39,8 +39,9 @@ O **Lusíadas Oníricos** é uma ferramenta de software completa para análise l
 
 3. **🧠 Expansão Semântica**
    - **Claude Sonnet 4**: Análise literária qualitativa para identificar palavras relacionadas
-   - **FastText**: Similaridade semântica para encontrar termos similares
-   - **BERTimbau**: Análise contextual em português
+   - **NLP Tradicional**: Técnicas focadas especificamente no termo "sono" e termos relacionados
+   - **Gemini Validator**: Validação e refinamento automático dos resultados
+   - **Análise de Coocorrência**: Identificação de termos que aparecem juntos
    - Combinação de todos os métodos para vocabulário expandido
 
 4. **🔍 Análise de Contexto**
@@ -67,10 +68,12 @@ O **Lusíadas Oníricos** é uma ferramenta de software completa para análise l
 ### 🛠️ **Tecnologias de IA Utilizadas**
 
 - **Claude Sonnet 4**: Análise literária qualitativa e classificação de contextos
+- **NLP Tradicional**: Técnicas focadas especificamente no termo "sono" e termos relacionados
 - **spaCy**: Processamento de linguagem natural em português
 - **NLTK**: Análise de texto e recursos linguísticos
 - **Pandas**: Manipulação e análise de dados
 - **Matplotlib/Plotly**: Geração de visualizações interativas
+- **Gemini Validator**: Validação e refinamento dos resultados
 
 ## 🏗️ Arquitetura do Sistema
 
@@ -364,6 +367,8 @@ npm install --force
 - **NLTK** - Análise de texto
 - **Pandas** - Manipulação de dados
 - **Anthropic API** - Claude Sonnet 4
+- **NLP Tradicional** - Técnicas focadas no termo "sono"
+- **Gemini API** - Validação e refinamento de resultados
 
 ### Frontend
 - **React 18+** - Biblioteca de interface
@@ -434,12 +439,13 @@ Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para ma
 ### 🌟 **Exemplo 1: Análise de Os Lusíadas**
 
 1. **Upload**: Faça upload do arquivo `os_lusiadas.txt`
-2. **Processamento**: Aguarde a análise automática
+2. **Processamento**: Aguarde a análise automática com NLP tradicional
 3. **Resultados**: Visualize:
-   - 45 ocorrências da palavra "sonho"
-   - 32 contextos "proféticos"
-   - 28 contextos "oníricos"
+   - Análise focada no termo "sono" e termos relacionados
+   - Contextos classificados (onírico, profético, alegórico, divino, ilusório)
+   - Validação automática com Gemini
    - Distribuição por cantos
+   - Download com nome criativo: "visoes_oniricas_epopeia_YYYYMMDD_HHMMSS.pdf"
 
 ### 📊 **Exemplo 2: Análise de Texto Personalizado**
 
@@ -480,9 +486,14 @@ Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para ma
 - [x] Upload de arquivos (.txt, .docx, .pdf)
 - [x] Pré-processamento de texto com spaCy
 - [x] Expansão semântica com Claude Sonnet 4
+- [x] **Sistema NLP Tradicional** focado no termo "sono"
+- [x] **Validação com Gemini** para refinamento de resultados
 - [x] Análise de contextos e classificação automática
+- [x] **Categorização expandida** (onírico, profético, alegórico, divino, ilusório)
 - [x] Geração de visualizações interativas
 - [x] Dashboard administrativo
+- [x] **Nomes de arquivo criativos** para downloads
+- [x] **Relatórios limpos** sem data de geração
 - [x] Configuração de CORS para desenvolvimento
 - [x] Componentes UI completos (Tailwind CSS)
 - [x] Sistema de notificações (Toaster)
@@ -494,6 +505,15 @@ Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para ma
 - ✅ Componente Toaster faltante
 - ✅ Arquivo CSS vazio (configurações do Tailwind)
 - ✅ Configuração do Tailwind CSS faltante
+
+### 🆕 **Melhorias Implementadas (Dezembro 2024)**
+- ✅ **Novo Título Criativo**: "Visões Oníricas da Epopeia Lusitana"
+- ✅ **Sistema NLP Tradicional**: Foco específico no termo "sono" e termos relacionados
+- ✅ **Validação com Gemini**: Refinamento automático dos resultados
+- ✅ **Nomes de Arquivo Criativos**: Downloads com nomes mais elegantes
+- ✅ **Remoção de Data**: Relatórios mais limpos sem data de geração
+- ✅ **Categorização Expandida**: Nova categoria "ilusório" para análise mais precisa
+- ✅ **Técnicas Avançadas**: Tokenização, lematização, coocorrência e similaridade
 
 ## 🚀 Próximos Passos
 
@@ -519,4 +539,4 @@ Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para ma
 
 **🎉 O projeto está 100% funcional e pronto para uso!**
 
-> 📝 **Última atualização**: Dezembro 2024 - Todos os problemas de configuração foram resolvidos e o sistema está operacional.
+> 📝 **Última atualização**: Dezembro 2024 - Sistema atualizado com novo título criativo, NLP tradicional focado no sono, validação com Gemini e nomes de arquivo elegantes.

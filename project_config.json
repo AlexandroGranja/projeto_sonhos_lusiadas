@@ -1,8 +1,8 @@
 {
   "project": {
-    "name": "Sonhos Lusíadas - Análise de Temas Oníricos",
-    "version": "2.0.0",
-    "description": "Sistema de análise quantitativa e qualitativa de temas oníricos em Os Lusíadas de Camões",
+    "name": "Sonhos Lusíadas - Análise NLP Tradicional Focada no Sono",
+    "version": "3.0.0",
+    "description": "Sistema de análise com técnicas NLP tradicionais focado especificamente no termo 'sono' em Os Lusíadas de Camões",
     "author": "Projeto de Pesquisa Acadêmica"
   },
   "structure": {
@@ -14,10 +14,12 @@
     "analysis_results": "analysis_results"
   },
   "features": {
-    "analysis_modes": ["estrito", "completo"],
-    "context_types": ["onírico", "profético", "alegórico", "divino"],
+    "analysis_modes": ["traditional", "estrito"],
+    "context_types": ["onírico", "profético", "alegórico", "divino", "ilusório"],
     "export_formats": ["csv", "pdf", "json"],
-    "visualizations": ["bar_chart", "pie_chart", "line_chart"]
+    "visualizations": ["bar_chart", "pie_chart", "line_chart", "heatmap", "cooccurrence_graph"],
+    "nlp_techniques": ["tokenization", "lemmatization", "pos_tagging", "cooccurrence", "similarity", "pattern_matching"],
+    "validation": ["gemini_cross_validation"]
   },
   "api": {
     "base_url": "http://localhost:5000/api/analysis",
@@ -25,7 +27,15 @@
       "health": "/health",
       "upload": "/upload",
       "complete_analysis": "/complete-analysis",
+      "expand_semantic": "/expand-semantic",
+      "analyze_contexts": "/analyze-contexts",
       "export_report": "/export-detailed-report"
     }
+  },
+  "focus": {
+    "primary_term": "sono",
+    "related_terms": ["sonho", "dormir", "repouso", "descanso", "pesadelo", "visão", "sombra", "fantasia", "ilusão"],
+    "methodology": "traditional_nlp",
+    "validation": "gemini_secondary"
   }
 }
