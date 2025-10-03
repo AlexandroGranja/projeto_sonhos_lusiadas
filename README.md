@@ -13,6 +13,14 @@
 
 O **Visões Oníricas da Epopeia Lusitana** é uma ferramenta de software completa para análise literária do tema "sonho" na obra *Os Lusíadas*, de Luís de Camões. A aplicação combina técnicas avançadas de **Processamento de Linguagem Natural (NLP)** com modelos de linguagem de última geração para oferecer uma plataforma robusta de pesquisa literária.
 
+### 🧱 Resumo de Linguagens e Tecnologias
+
+- **Linguagens**: Python (backend), JavaScript/JSX (frontend)
+- **Backend**: Flask, Flask-CORS, SQLAlchemy (base disponível), spaCy, NLTK, scikit-learn, Pandas
+- **Frontend**: React 18, Vite, Tailwind CSS, componentes UI utilitários
+- **Visualização**: Matplotlib, Plotly, Chart utilities
+- **Outros**: python-dotenv, requests; Node/npm para o app web
+
 ### 🎯 Funcionalidades Principais
 
 - 🔍 **Análise Quantitativa**: Frequência de palavras, identificação de padrões e distribuição de termos relacionados a "sonho"
@@ -137,11 +145,13 @@ echo "ANTHROPIC_API_KEY=sua_chave_de_api_aqui" > .env
 echo "SECRET_KEY=sonhos-lusiadas-secret-key-2024" >> .env
 echo "CORS_ORIGINS=http://localhost:3000,http://localhost:5173,http://192.168.1.14:5173" >> .env
 
-# 6. Execute o servidor Flask
+# 6. Execute o servidor Flask (porta configurável via variável PORT)
+# Ex.: usar 5050 para evitar conflitos locais
+set PORT=5050  # Windows PowerShell: $env:PORT='5050'
 python src/main.py
 ```
 
-✅ **Backend rodando em:** `http://localhost:5000` ou `http://192.168.1.14:5000`
+✅ **Backend rodando em:** `http://localhost:5050` (ou na porta definida em `PORT`)
 
 ### ⚛️ Passo 3: Configurar o Frontend (React)
 
@@ -249,9 +259,9 @@ npm run dev
 
 ### 🌐 **Acessar a Aplicação**
 
-- **Frontend**: http://localhost:5173 ou http://192.168.1.14:5173
-- **Backend API**: http://localhost:5000 ou http://192.168.1.14:5000
-- **Health Check**: http://localhost:5000/api/analysis/health
+- **Frontend**: http://localhost:5173
+- **Backend API**: http://localhost:5050 (ou porta definida em `PORT`)
+- **Health Check**: http://localhost:5050/api/analysis/health
 
 ### 📱 **Interface do Usuário**
 
@@ -381,33 +391,50 @@ npm install --force
 
 ```
 projeto_sonhos_lusiadas/
-├── 📁 sonhos-lusiadas-backend/     # Backend Flask
-│   ├── 📁 src/
-│   │   ├── main.py                 # Servidor principal
-│   │   ├── 📁 routes/              # Endpoints da API
-│   │   ├── 📁 models/              # Modelos de dados
-│   │   └── 📁 database/            # Banco de dados
-│   └── requirements.txt            # Dependências Python
-├── 📁 sonhos-lusiadas-app/         # Frontend React
-│   ├── 📁 src/
-│   │   ├── 📁 components/          # Componentes React
-│   │   ├── 📁 hooks/               # Custom hooks
-│   │   └── 📁 services/            # Serviços de API
-│   └── package.json                # Dependências Node.js
-├── 📁 data/                        # Dados do projeto
-│   └── 📁 raw/
-│       └── os_lusiadas.txt         # Texto original
-├── 📁 docs/                        # Documentação
-│   ├── MANUAL_USUARIO.md           # Manual do usuário
-│   ├── MELHORIAS_IMPLEMENTADAS.md  # Melhorias implementadas
-│   └── 📁 relatorios/              # Relatórios de análise
-├── 📁 scripts/                     # Scripts de inicialização
-│   ├── start_project.bat           # Script Windows
-│   └── start_project.sh            # Script Linux/Mac
-├── 📁 analysis_results/            # Resultados de análises
-├── project_config.json             # Configuração do projeto
-├── env.example                     # Exemplo de variáveis de ambiente
-└── README.md                       # Este arquivo
+├── data/
+│   └── raw/
+│       └── os_lusiadas.txt
+├── docs/
+│   ├── COMO_USAR_FILTROS.md
+│   ├── CORRECAO_DOWNLOAD.md
+│   ├── MANUAL_USUARIO.md
+│   ├── MELHORIAS_IMPLEMENTADAS_V3.md
+│   ├── MELHORIAS_IMPLEMENTADAS.md
+│   ├── MODOS_E_FILTROS.md
+│   ├── NOVAS_FUNCIONALIDADES.md
+│   ├── ORGANIZACAO_PROJETO.md
+│   ├── relatorio_canto_i.md
+│   ├── RELATORIO_FINAL_CANTO_I.md
+│   ├── RESPOSTA_METODOLOGIA_CLIENTE.md
+│   ├── RESUMO_CANTO_I_CLIENTE.md
+│   ├── SOLUCAO_DOWNLOAD.md
+│   └── TESTE_DOWNLOADS.md
+├── env.example
+├── project_config.json
+├── requirements.txt
+├── scripts/
+│   ├── start_project.bat
+│   └── start_project.sh
+├── sonhos-lusiadas-app/
+│   ├── index.html
+│   ├── package.json
+│   ├── src/
+│   │   ├── App.jsx, main.jsx, index.css
+│   │   ├── components/ (AboutPage.jsx, AnalysisPage.jsx, ...)
+│   │   ├── hooks/ (useAnalysis.js, useFileUpload.js, ...)
+│   │   └── services/api.js
+│   └── public/favicon.ico
+├── sonhos-lusiadas-backend/
+│   ├── requirements.txt
+│   └── src/
+│       ├── main.py
+│       ├── routes/ (analysis.py, user.py)
+│       ├── models/
+│       ├── database/ (app.db)
+│       ├── static/ (index.html, favicon.ico)
+│       ├── uploads/ (arquivos enviados)
+│       └── venv/ (ambiente virtual local)
+└── README.md
 ```
 
 ## 🤝 Contribuindo

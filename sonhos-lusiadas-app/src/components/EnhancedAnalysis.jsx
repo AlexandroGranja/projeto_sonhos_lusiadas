@@ -75,7 +75,7 @@ const EnhancedAnalysis = () => {
     sortedCantos.forEach(canto => {
       const info = byCanto[canto]
       const cantoContexts = (info.dream_contexts || []).map(ctx => ({
-        ...ctx,
+        ...normalizeContext(ctx),
         canto,
         id: `${canto}-${ctx.position}`
       }))
@@ -160,6 +160,18 @@ const EnhancedAnalysis = () => {
     return highlighted
   }
 
+  // Normaliza campos vindos do backend para evitar "undefined"
+  const normalizeContext = (ctx) => {
+    if (!ctx) return ctx
+    const context_type = ctx.context_type || ctx.classification || 'onírico'
+    let confidence = ctx.confidence_score
+    if (confidence === undefined || confidence === null) confidence = ctx.confidence
+    if (typeof confidence === 'number' && confidence > 1) confidence = Math.round((confidence / 100) * 100) / 100
+    if (typeof confidence !== 'number') confidence = 0
+    const sentence = ctx.sentence || ctx.text || ctx.excerpt || ''
+    return { ...ctx, context_type, confidence_score: confidence, sentence }
+  }
+
   const exportToCSV = () => {
     if (!filteredContexts.length) return
     
@@ -223,6 +235,38 @@ const EnhancedAnalysis = () => {
     printWindow.document.write(content)
     printWindow.document.close()
     printWindow.print()
+  }
+
+  const exportToDOCX = async () => {
+    if (!data) {
+      alert('❌ Nenhuma análise disponível para exportar.\n\nPor favor, execute uma análise primeiro.')
+      return
+    }
+    try {
+      const resp = await api.exportDetailedReport(data, 'docx')
+      const base64 = resp?.content
+      const filename = resp?.filename || 'relatorio_analise_sonhos.docx'
+      if (!base64) {
+        alert('Não foi possível gerar o DOCX. Tente novamente.')
+        return
+      }
+      const byteCharacters = atob(base64)
+      const byteNumbers = new Array(byteCharacters.length)
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i)
+      }
+      const byteArray = new Uint8Array(byteNumbers)
+      const blob = new Blob([byteArray], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      console.error('Erro ao exportar DOCX:', e)
+      alert('Falha ao exportar DOCX. Verifique o backend e tente novamente.')
+    }
   }
 
   return (
@@ -459,6 +503,10 @@ const EnhancedAnalysis = () => {
                 <Button variant="outline" onClick={exportToPDF} size="sm">
                   <FileText className="h-4 w-4 mr-2" />
                   PDF
+                </Button>
+                <Button variant="outline" onClick={exportToDOCX} size="sm">
+                  <FileText className="h-4 w-4 mr-2" />
+                  Word (DOCX)
                 </Button>
               </div>
             </div>

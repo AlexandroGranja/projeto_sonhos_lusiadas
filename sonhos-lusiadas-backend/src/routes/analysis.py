@@ -10,6 +10,8 @@ import logging
 import re
 import unicodedata
 from datetime import datetime
+import io
+import base64
 from flask import Blueprint, request, jsonify, current_app
 from werkzeug.utils import secure_filename
 import json
@@ -463,6 +465,29 @@ def export_detailed_report():
                 'filename': f'visoes_oniricas_epopeia_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf'
             })
         
+        elif export_format == 'docx':
+            # Gera DOCX com gráfico embutido (barras por tipo de contexto)
+            print(f"DEBUG: Iniciando geração DOCX com dados: {type(analysis_data)}")
+            try:
+                # Tenta primeiro com gráfico, se falhar usa versão simples
+                try:
+                    docx_b64 = generate_docx_report(analysis_data)
+                    print("DEBUG: DOCX com gráfico gerado com sucesso")
+                except Exception as e:
+                    print(f"WARNING: Erro com gráfico, usando versão simples: {e}")
+                    docx_b64 = generate_docx_report_simple(analysis_data)
+                    print("DEBUG: DOCX simples gerado com sucesso")
+                
+                return jsonify({
+                    'message': 'Relatório DOCX gerado com sucesso',
+                    'content': docx_b64,
+                    'filename': f'visoes_oniricas_epopeia_{datetime.now().strftime("%Y%m%d_%H%M%S")}.docx',
+                    'encoding': 'base64'
+                })
+            except Exception as e:
+                print(f"ERROR: Erro na geração DOCX: {e}")
+                raise
+
         else:
             return jsonify({'error': 'Formato de exportação não suportado'}), 400
             
@@ -552,6 +577,242 @@ def generate_pdf_report(analysis_data):
     """
     
     return html_content
+
+def generate_docx_report_simple(analysis_data):
+    """Gera relatório em formato DOCX simples (sem gráfico) e retorna conteúdo base64."""
+    try:
+        from docx import Document
+        print("DEBUG: Módulo docx importado com sucesso")
+    except ImportError as e:
+        print(f"ERROR: Erro ao importar docx: {e}")
+        raise
+
+    try:
+        document = Document()
+        document.add_heading('Visões Oníricas da Epopeia Lusitana', 0)
+        print("DEBUG: Documento criado")
+
+        # Resumo
+        aggregate = analysis_data.get('aggregate', {})
+        preprocessing = aggregate.get('preprocessing', {})
+        context_cls = aggregate.get('context_classification', {})
+
+        document.add_paragraph('Resumo da Análise:')
+        document.add_paragraph(f"Total de palavras: {preprocessing.get('words', 0)}")
+        document.add_paragraph(f"Cantos identificados: {aggregate.get('cantos_identified', 0)}")
+        print("DEBUG: Resumo adicionado")
+
+        # Tabela de classificação (em vez de gráfico)
+        if context_cls:
+            document.add_paragraph('Classificação de Contextos:')
+            table = document.add_table(rows=1, cols=2)
+            table.style = 'Table Grid'
+            hdr_cells = table.rows[0].cells
+            hdr_cells[0].text = 'Tipo'
+            hdr_cells[1].text = 'Quantidade'
+            
+            for tipo, quantidade in context_cls.items():
+                row_cells = table.add_row().cells
+                row_cells[0].text = tipo
+                row_cells[1].text = str(quantidade)
+        print("DEBUG: Tabela de classificação adicionada")
+
+        # Detalhamento por canto
+        document.add_heading('Contextos por Canto', level=1)
+        by_canto = analysis_data.get('by_canto', {})
+        print(f"DEBUG: Processando {len(by_canto)} cantos")
+        
+        for canto, info in by_canto.items():
+            document.add_heading(str(canto), level=2)
+            pre = info.get('preprocessing', {})
+            cls = info.get('context_classification', {})
+            document.add_paragraph(f"Palavras: {pre.get('words', 0)}  |  Sentenças: {pre.get('sentences', 0)}")
+            if cls:
+                document.add_paragraph("Classificação:")
+                for k, v in cls.items():
+                    document.add_paragraph(f"- {k}: {v}")
+
+            # Lista TODAS as ocorrências com detalhes completos (igual ao PDF)
+            contexts = info.get('dream_contexts', [])
+            if contexts:
+                document.add_paragraph("Ocorrências encontradas:")
+                for ctx in contexts:
+                    stanza = ctx.get('stanza', 'N/A')
+                    ctype = ctx.get('classification') or ctx.get('context_type', 'onírico')
+                    confidence = round((ctx.get('confidence_score', 0) * 100), 2)
+                    sentence = ctx.get('sentence', '')
+                    reasoning = ctx.get('reasoning', '')
+                    
+                    # Adiciona detalhes completos como no PDF
+                    document.add_paragraph(f"Estrofe {stanza}")
+                    document.add_paragraph(f"Tipo: {ctype}")
+                    document.add_paragraph(f"Confiança: {confidence}%")
+                    document.add_paragraph(f"Trecho: {sentence}")
+                    if reasoning:
+                        document.add_paragraph(f"Raciocínio: {reasoning}")
+                    document.add_paragraph("")  # Linha em branco para separar
+
+        print("DEBUG: Conteúdo adicionado ao documento")
+
+        # Gera bytes do DOCX em memória
+        out = io.BytesIO()
+        document.save(out)
+        out.seek(0)
+        print("DEBUG: Documento salvo em memória")
+        
+        result = base64.b64encode(out.read()).decode('utf-8')
+        print(f"DEBUG: DOCX convertido para base64, tamanho: {len(result)}")
+        return result
+        
+    except Exception as e:
+        print(f"ERROR: Erro na geração do DOCX: {e}")
+        import traceback
+        traceback.print_exc()
+        raise
+
+def generate_docx_report(analysis_data):
+    """Gera relatório em formato DOCX com gráfico embutido e retorna conteúdo base64."""
+    try:
+        from docx import Document
+        from docx.shared import Inches
+        print("DEBUG: Módulos docx importados com sucesso")
+    except ImportError as e:
+        print(f"ERROR: Erro ao importar docx: {e}")
+        raise
+
+    try:
+        document = Document()
+        document.add_heading('Visões Oníricas da Epopeia Lusitana', 0)
+        print("DEBUG: Documento criado")
+
+        # Resumo
+        aggregate = analysis_data.get('aggregate', {})
+        preprocessing = aggregate.get('preprocessing', {})
+        context_cls = aggregate.get('context_classification', {})
+
+        document.add_paragraph('Resumo da Análise:')
+        document.add_paragraph(f"Total de palavras: {preprocessing.get('words', 0)}")
+        document.add_paragraph(f"Cantos identificados: {aggregate.get('cantos_identified', 0)}")
+        print("DEBUG: Resumo adicionado")
+
+        # Tenta criar gráfico com matplotlib
+        chart_added = False
+        try:
+            import matplotlib
+            matplotlib.use('Agg')  # Usa backend não-interativo
+            import matplotlib.pyplot as plt
+            import matplotlib.patches as mpatches
+            
+            # Gráfico simples: barras por tipo de contexto
+            labels = list(context_cls.keys()) if context_cls else []
+            values = [context_cls[k] for k in labels] if context_cls else []
+
+            # Evita gráfico vazio
+            if not labels:
+                labels = ['onírico', 'profético', 'alegórico', 'divino', 'ilusório']
+                values = [0, 0, 0, 0, 0]
+
+            print(f"DEBUG: Criando gráfico com labels: {labels}, values: {values}")
+
+            # Configura matplotlib para não usar display
+            plt.ioff()  # Desativa modo interativo
+            
+            fig, ax = plt.subplots(figsize=(8, 4))
+            colors = ['#4c78a8', '#f58518', '#e45756', '#72b7b2', '#54a24b']
+            
+            bars = ax.bar(labels, values, color=colors[:len(labels)])
+            ax.set_title('Classificação de Contextos por Tipo', fontsize=14, fontweight='bold')
+            ax.set_ylabel('Quantidade', fontsize=12)
+            ax.set_xlabel('Tipo de Contexto', fontsize=12)
+            
+            # Adiciona valores nas barras
+            for bar, value in zip(bars, values):
+                if value > 0:
+                    ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.1, 
+                           str(value), ha='center', va='bottom', fontweight='bold')
+            
+            plt.tight_layout()
+
+            img_bytes = io.BytesIO()
+            fig.savefig(img_bytes, format='png', dpi=150, bbox_inches='tight')
+            plt.close(fig)
+            img_bytes.seek(0)
+            print("DEBUG: Gráfico criado e salvo")
+
+            # Insere o gráfico no DOCX
+            document.add_picture(img_bytes, width=Inches(6))
+            print("DEBUG: Gráfico inserido no documento")
+            chart_added = True
+            
+        except Exception as e:
+            print(f"WARNING: Erro ao criar gráfico: {e}")
+            # Fallback: tabela em vez de gráfico
+            if context_cls:
+                document.add_paragraph('Classificação de Contextos:')
+                table = document.add_table(rows=1, cols=2)
+                table.style = 'Table Grid'
+                hdr_cells = table.rows[0].cells
+                hdr_cells[0].text = 'Tipo'
+                hdr_cells[1].text = 'Quantidade'
+                
+                for tipo, quantidade in context_cls.items():
+                    row_cells = table.add_row().cells
+                    row_cells[0].text = tipo
+                    row_cells[1].text = str(quantidade)
+                print("DEBUG: Tabela de classificação adicionada como fallback")
+
+        # Detalhamento por canto (resumo)
+        document.add_heading('Contextos por Canto', level=1)
+        by_canto = analysis_data.get('by_canto', {})
+        print(f"DEBUG: Processando {len(by_canto)} cantos")
+        
+        for canto, info in by_canto.items():
+            document.add_heading(str(canto), level=2)
+            pre = info.get('preprocessing', {})
+            cls = info.get('context_classification', {})
+            document.add_paragraph(f"Palavras: {pre.get('words', 0)}  |  Sentenças: {pre.get('sentences', 0)}")
+            if cls:
+                document.add_paragraph("Classificação:")
+                for k, v in cls.items():
+                    document.add_paragraph(f"- {k}: {v}")
+
+            # Lista TODAS as ocorrências com detalhes completos (igual ao PDF)
+            contexts = info.get('dream_contexts', [])
+            if contexts:
+                document.add_paragraph("Ocorrências encontradas:")
+                for ctx in contexts:
+                    stanza = ctx.get('stanza', 'N/A')
+                    ctype = ctx.get('classification') or ctx.get('context_type', 'onírico')
+                    confidence = round((ctx.get('confidence_score', 0) * 100), 2)
+                    sentence = ctx.get('sentence', '')
+                    reasoning = ctx.get('reasoning', '')
+                    
+                    # Adiciona detalhes completos como no PDF
+                    document.add_paragraph(f"Estrofe {stanza}")
+                    document.add_paragraph(f"Tipo: {ctype}")
+                    document.add_paragraph(f"Confiança: {confidence}%")
+                    document.add_paragraph(f"Trecho: {sentence}")
+                    if reasoning:
+                        document.add_paragraph(f"Raciocínio: {reasoning}")
+                    document.add_paragraph("")  # Linha em branco para separar
+
+        print("DEBUG: Conteúdo adicionado ao documento")
+
+        # Gera bytes do DOCX em memória
+        out = io.BytesIO()
+        document.save(out)
+        out.seek(0)
+        print("DEBUG: Documento salvo em memória")
+        
+        result = base64.b64encode(out.read()).decode('utf-8')
+        print(f"DEBUG: DOCX convertido para base64, tamanho: {len(result)}")
+        return result
+        
+    except Exception as e:
+        print(f"ERROR: Erro na geração do DOCX: {e}")
+        import traceback
+        traceback.print_exc()
+        raise
 
 # Dicionários de termos
 EXPANDED_TERMS_FULL = {
@@ -863,24 +1124,76 @@ def complete_analysis():
 
         for canto_title, canto_text in cantos.items():
             # Analisa padrões de sonhos usando NLP tradicional
-            dream_patterns = analyzer.analyze_dream_patterns(canto_text)
+            # Aplica modo específico (completo ou estrito)
+            if mode == 'estrito':
+                # Modo estrito: apenas termos muito específicos de sonhos
+                dream_patterns = analyzer.analyze_dream_patterns_strict(canto_text)
+            else:
+                # Modo completo: todos os termos relacionados
+                dream_patterns = analyzer.analyze_dream_patterns(canto_text)
             
             # Extrai contextos relacionados ao sono
             sleep_contexts = dream_patterns.get('classified_contexts', [])
+
+            # Normaliza campos esperados pelo frontend/exportadores
+            normalized_contexts = []
+            for ctx in sleep_contexts:
+                if not isinstance(ctx, dict):
+                    continue
+                context_type = ctx.get('context_type') or ctx.get('classification') or 'onírico'
+                # Confiança pode vir como 0-1 (float) ou 0-100 (percentual)
+                confidence = ctx.get('confidence_score')
+                if confidence is None:
+                    confidence = ctx.get('confidence')
+                if isinstance(confidence, (int, float)) and confidence > 1:
+                    confidence = round(float(confidence) / 100.0, 2)
+                if not isinstance(confidence, (int, float)):
+                    confidence = 0.0
+
+                sentence = ctx.get('sentence') or ctx.get('text') or ctx.get('excerpt') or ''
+                stanza = ctx.get('stanza') if isinstance(ctx.get('stanza'), int) else ctx.get('stanza')
+
+                normalized = dict(ctx)
+                normalized['context_type'] = context_type
+                normalized['confidence_score'] = round(float(confidence), 2)
+                normalized['sentence'] = sentence
+                normalized['stanza'] = stanza
+                normalized_contexts.append(normalized)
             
             # Valida com Gemini se disponível
             if validator.available:
-                sleep_contexts = validator.validate_batch(sleep_contexts)
+                validated = validator.validate_batch(normalized_contexts)
+                # Preserva campos normalizados e aplica atualizações do validador
+                if isinstance(validated, list) and len(validated) == len(normalized_contexts):
+                    merged = []
+                    for i, vctx in enumerate(validated):
+                        base_ctx = dict(normalized_contexts[i])
+                        if isinstance(vctx, dict):
+                            base_ctx.update(vctx)
+                            # Reforça campos essenciais após merge
+                            base_ctx['context_type'] = base_ctx.get('context_type') or base_ctx.get('classification') or 'onírico'
+                            conf = base_ctx.get('confidence_score')
+                            if conf is None:
+                                conf = base_ctx.get('confidence')
+                            if isinstance(conf, (int, float)) and conf > 1:
+                                conf = round(float(conf) / 100.0, 2)
+                            base_ctx['confidence_score'] = round(float(conf or 0.0), 2)
+                            base_ctx['sentence'] = base_ctx.get('sentence') or base_ctx.get('text') or base_ctx.get('excerpt') or ''
+                        merged.append(base_ctx)
+                    normalized_contexts = merged
+                else:
+                    # fallback: mantém os normalizados originais
+                    normalized_contexts = normalized_contexts
             
             # Conta termos por categoria
             canto_classification = {'onírico': 0, 'profético': 0, 'alegórico': 0, 'divino': 0, 'ilusório': 0}
-            for ctx in sleep_contexts:
-                classification = ctx.get('classification', 'onírico')
+            for ctx in normalized_contexts:
+                classification = ctx.get('context_type') or ctx.get('classification', 'onírico')
                 if classification in canto_classification:
                     canto_classification[classification] += 1
             
             # Estrofes com ocorrência
-            stanzas_with_hits = sorted({ctx.get('stanza') for ctx in sleep_contexts if ctx.get('stanza') is not None})
+            stanzas_with_hits = sorted({ctx.get('stanza') for ctx in normalized_contexts if ctx.get('stanza') is not None})
             
             # Pré-processamento
             canto_pre = {
@@ -898,7 +1211,7 @@ def complete_analysis():
             per_canto_results[canto_title] = {
                 'preprocessing': canto_pre,
                 'sleep_terms': sleep_terms_found,
-                'dream_contexts': sleep_contexts,
+                'dream_contexts': normalized_contexts,
                 'context_classification': canto_classification,
                 'stanzas': stanzas_with_hits,
                 'cooccurrence': dream_patterns.get('cooccurrence', {}),
@@ -929,7 +1242,7 @@ def complete_analysis():
                         legacy_expanded_terms[category][term] = legacy_expanded_terms[category].get(term, 0) + 1
 
             # Compatibilidade legada: juntar contextos e anotar o canto
-            for ctx in sleep_contexts:
+            for ctx in normalized_contexts:
                 ctx_with_canto = dict(ctx)
                 ctx_with_canto['canto'] = canto_title
                 legacy_dream_contexts.append(ctx_with_canto)

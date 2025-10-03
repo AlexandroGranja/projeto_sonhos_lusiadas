@@ -1,4 +1,8 @@
-const API_BASE_URL = 'http://localhost:5000/api/analysis'
+// Permite configurar a URL da API via .env do Vite: VITE_API_BASE_URL
+// Ex.: VITE_API_BASE_URL=http://localhost:5050/api/analysis
+const API_BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE_URL)
+  ? import.meta.env.VITE_API_BASE_URL
+  : 'http://localhost:5050/api/analysis'
 
 class ApiService {
   async healthCheck() {

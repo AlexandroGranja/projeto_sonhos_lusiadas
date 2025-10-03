@@ -74,6 +74,18 @@ const SimpleAnalysis = () => {
     return highlighted
   }
 
+  // Normaliza campos vindos do backend para evitar "undefined"
+  const normalizeContext = (ctx) => {
+    if (!ctx) return ctx
+    const context_type = ctx.context_type || ctx.classification || 'onírico'
+    let confidence = ctx.confidence_score
+    if (confidence === undefined || confidence === null) confidence = ctx.confidence
+    if (typeof confidence === 'number' && confidence > 1) confidence = Math.round((confidence / 100) * 100) / 100
+    if (typeof confidence !== 'number') confidence = 0
+    const sentence = ctx.sentence || ctx.text || ctx.excerpt || ''
+    return { ...ctx, context_type, confidence_score: confidence, sentence }
+  }
+
   const exportToCSV = () => {
     if (!data) {
       alert('❌ Nenhuma análise disponível para exportar.\n\nPor favor, execute uma análise primeiro.')
@@ -208,6 +220,42 @@ const SimpleAnalysis = () => {
     printWindow.print()
   }
 
+  
+
+  const exportToDOCX = async () => {
+    if (!data) {
+      alert('❌ Nenhuma análise disponível para exportar.\n\nPor favor, execute uma análise primeiro.')
+      return
+    }
+    try {
+      const resp = await api.exportDetailedReport(data, 'docx')
+      const base64 = resp?.content
+      const filename = resp?.filename || 'relatorio_analise_sonhos.docx'
+      if (!base64) {
+        alert('Não foi possível gerar o DOCX. Tente novamente.')
+        return
+      }
+      const byteCharacters = atob(base64)
+      const byteNumbers = new Array(byteCharacters.length)
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i)
+      }
+      const byteArray = new Uint8Array(byteNumbers)
+      const blob = new Blob([byteArray], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      console.error('Erro ao exportar DOCX:', e)
+      alert('Falha ao exportar DOCX. Verifique o backend e tente novamente.')
+    }
+  }
+
   const downloadCompleteAnalysis = () => {
     if (!data) {
       alert('❌ Nenhuma análise disponível para exportar.\n\nPor favor, execute uma análise primeiro.')
@@ -299,7 +347,7 @@ const SimpleAnalysis = () => {
     sortedCantos.forEach(canto => {
       const info = byCanto[canto]
       const cantoContexts = (info.dream_contexts || []).map(ctx => ({
-        ...ctx,
+        ...normalizeContext(ctx),
         canto,
         id: `${canto}-${ctx.position}`
       }))
@@ -424,121 +472,7 @@ const SimpleAnalysis = () => {
         </CardContent>
       </Card>
 
-      {/* Filtros e Busca */}
-      {data && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Filter className="h-5 w-5" />
-              Filtros e Busca Avançada
-            </CardTitle>
-            <div className="space-y-2">
-              <p className="text-sm text-gray-600">
-                <strong>Após a análise:</strong> Use os filtros abaixo para refinar os resultados encontrados
-              </p>
-              <div className="bg-yellow-50 p-3 rounded-lg">
-                <p className="text-sm text-yellow-800">
-                  <strong>💡 Dica:</strong> Os filtros aparecem apenas DEPOIS da análise. Eles servem para explorar e organizar os resultados encontrados, não para alterar o modo de busca inicial.
-                </p>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div>
-                <label className="text-sm font-medium mb-2 block">
-                  Buscar por texto
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="ml-1 text-gray-400 cursor-help">ℹ️</span>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Busca por palavras nos trechos, raciocínios ou termos encontrados</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input
-                    placeholder="Digite para buscar..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="text-sm font-medium mb-2 block">
-                  Tipo de contexto
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="ml-1 text-gray-400 cursor-help">ℹ️</span>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Filtra por tipo de sonho: Onírico (sonhos diretos), Profético (visões), Alegórico (símbolos), Divino (revelações)</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </label>
-                <Select value={contextTypeFilter} onValueChange={setContextTypeFilter}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="todos">Todos os tipos</SelectItem>
-                    <SelectItem value="onírico">Onírico</SelectItem>
-                    <SelectItem value="profético">Profético</SelectItem>
-                    <SelectItem value="alegórico">Alegórico</SelectItem>
-                    <SelectItem value="divino">Divino</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="text-sm font-medium mb-2 block">
-                  Confiança mínima
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="ml-1 text-gray-400 cursor-help">ℹ️</span>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Mostra apenas classificações com confiança acima do valor selecionado (0-100%)</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </label>
-                <div className="space-y-2">
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.1"
-                    value={confidenceFilter}
-                    onChange={(e) => setConfidenceFilter(parseFloat(e.target.value))}
-                    className="w-full"
-                  />
-                  <div className="text-sm text-gray-600">
-                    {Math.round(confidenceFilter * 100)}%
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-end">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowReasoning(!showReasoning)}
-                  className="w-full"
-                >
-                  {showReasoning ? <EyeOff className="h-4 w-4 mr-2" /> : <Eye className="h-4 w-4 mr-2" />}
-                  {showReasoning ? 'Ocultar' : 'Mostrar'} Raciocínio
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {/* Filtros e Busca removidos por solicitação do usuário */}
 
       {aggregate && (
         <div className="space-y-4">
@@ -596,6 +530,10 @@ const SimpleAnalysis = () => {
                   <Button variant="outline" onClick={exportToPDF} className="flex items-center gap-2">
                     <FileText className="h-4 w-4" />
                     Relatório (PDF)
+                  </Button>
+                  <Button variant="outline" onClick={exportToDOCX} className="flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    Word (DOCX)
                   </Button>
                 </div>
                 
@@ -1242,6 +1180,10 @@ const SimpleAnalysis = () => {
                 <Button variant="outline" onClick={exportToPDF} size="sm">
                   <FileText className="h-4 w-4 mr-2" />
                   PDF
+                </Button>
+                <Button variant="outline" onClick={exportToDOCX} size="sm">
+                  <FileText className="h-4 w-4 mr-2" />
+                  Word (DOCX)
                 </Button>
               </div>
             </div>

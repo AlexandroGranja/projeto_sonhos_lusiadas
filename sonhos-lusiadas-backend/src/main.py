@@ -5,7 +5,9 @@ Aplicação principal do backend Sonhos Lusíadas
 
 import os
 import sys
-from flask import Flask, send_from_directory
+import time
+import logging
+from flask import Flask, send_from_directory, request, g
 from flask_cors import CORS
 from dotenv import load_dotenv
 
@@ -21,6 +23,27 @@ app.config['MAX_FILE_SIZE'] = int(os.getenv('MAX_FILE_SIZE', 16777216))  # 16MB
 # Configuração do CORS
 cors_origins = os.getenv('CORS_ORIGINS', 'http://localhost:3000,http://localhost:5173,http://192.168.1.14:5173').split(',')
 CORS(app, origins=cors_origins)
+
+# Logging básico
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("sonhos-lusiadas")
+
+# Log de cada requisição
+@app.before_request
+def _start_timer():
+    g._start_time = time.time()
+
+@app.after_request
+def _log_request(response):
+    try:
+        duration_ms = int((time.time() - getattr(g, '_start_time', time.time())) * 1000)
+        logger.info(
+            f"{request.method} {request.path} -> {response.status_code} in {duration_ms}ms "
+            f"ip={request.remote_addr} len={response.calculate_content_length() if hasattr(response, 'calculate_content_length') else '-'}"
+        )
+    except Exception as _:
+        pass
+    return response
 
 # Importa e registra blueprints
 try:
@@ -84,7 +107,7 @@ if __name__ == '__main__':
     # Inicia o servidor
     app.run(
         host='0.0.0.0',
-        port=5000,
+        port=int(os.getenv('PORT', 5000)),
         debug=debug,
         threaded=True,
         use_reloader=False

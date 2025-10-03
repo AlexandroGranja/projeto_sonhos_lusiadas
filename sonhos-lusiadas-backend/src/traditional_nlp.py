@@ -39,18 +39,49 @@ class TraditionalNLPAnalyzer:
         self.stopwords = set()
         self._setup_nlp_models()
         
-        # Termos relacionados ao sono (foco principal)
+        # Termos relacionados ao sono (agrupados por categoria)
+        # FOCO ESPECÍFICO EM SONHOS - não termos gerais
         self.sleep_terms = {
-            'sono': ['sono', 'sonos', 'sonar', 'sonando', 'sonava', 'sonou', 'sonará'],
-            'sonho': ['sonho', 'sonhos', 'sonhar', 'sonhando', 'sonhava', 'sonhou', 'sonhará'],
-            'dormir': ['dormir', 'dormindo', 'dormia', 'dormiu', 'dormirá', 'adormecer', 'adormecendo'],
-            'repouso': ['repouso', 'repousar', 'repousando', 'repousava', 'repousou'],
-            'descanso': ['descanso', 'descansar', 'descansando', 'descansava', 'descansou'],
-            'pesadelo': ['pesadelo', 'pesadelos', 'pesadelar', 'pesadelando'],
-            'visão': ['visão', 'visões', 'visionário', 'visionar', 'visionando'],
-            'sombra': ['sombra', 'sombras', 'sombreado', 'sombreador'],
-            'fantasia': ['fantasia', 'fantasias', 'fantasioso', 'fantasiar'],
-            'ilusão': ['ilusão', 'ilusões', 'ilusório', 'iludir', 'iludindo']
+            'onírico': [
+                'sonho', 'sonhos', 'sonhar', 'sonhando', 'sonhador', 'sonhante', 'sonhoso', 
+                'sonhava', 'sonhei', 'sonharia', 'sonhado', 'sonhante',
+                'pesadelo', 'pesadelos', 'pesadelar', 'pesadelando', 'pesadelava',
+                'dormir', 'dormindo', 'dormia', 'dormiu', 'dormirá', 'adormecer', 'adormecendo', 
+                'adormecia', 'adormeceu', 'despertar', 'despertando', 'despertava', 'despertou',
+                'repouso', 'repousar', 'repousando', 'repousava', 'repousou',
+                'descanso', 'descansar', 'descansando', 'descansava', 'descansou',
+                'sonolência', 'sonolento', 'sonolentamente', 'sonambulismo', 'sonambúlico',
+                'insônia', 'insone', 'soneca', 'sonecar', 'sonecante'
+            ],
+            'profético': [
+                'visão', 'visões', 'visionário', 'visionar', 'visionando', 'visionava',
+                'profecia', 'profécias', 'profético', 'profetizar', 'profetizando', 'profetizava',
+                'revelação', 'revelações', 'revelar', 'revelando', 'revelava', 'revelou',
+                'aparição', 'aparições', 'aparecer', 'aparecendo', 'aparecia', 'apareceu',
+                'oráculo', 'oráculos', 'oracular', 'presságio', 'presságios', 'pressagiar',
+                'vaticínio', 'vaticínios', 'vaticinar', 'vaticinando', 'vaticinava',
+                'augúrio', 'augúrios', 'augurar', 'augurando', 'augurava'
+            ],
+            'alegórico': [
+                'sombra', 'sombras', 'sombreado', 'sombreado', 'sombreado',
+                'fantasia', 'fantasias', 'fantasioso', 'fantasioso',
+                'ilusão', 'ilusões', 'ilusório', 'iludir', 'iludindo', 'iludia',
+                'metáfora', 'metáforas', 'metafórico', 'símbolo', 'símbolos', 'simbólico',
+                'alegoria', 'alegorias', 'alegórico', 'figura', 'figuras', 'figurado'
+            ],
+            'divino': [
+                'glória', 'glorioso', 'glorificar', 'glorificando', 'glorificava',
+                'divino', 'divinos', 'divinizar', 'divinizando', 'divinizava',
+                'celestial', 'celestiais', 'sobrenatural', 'sobrenaturais',
+                'milagre', 'milagres', 'milagroso', 'milagrosos',
+                'sagrado', 'sagrados', 'santificar', 'santificando', 'santificava',
+                'santo', 'santos', 'santidade', 'bendito', 'abençoado', 'abençoar'
+            ],
+            'ilusório': [
+                'ilusão', 'ilusões', 'ilusório', 'iludir', 'iludindo', 'iludia',
+                'quimera', 'quimeras', 'quimérico', 'miragem', 'miragens',
+                'falsa', 'falso', 'falsos', 'falsas', 'falsidade', 'falsificar'
+            ]
         }
         
         # Categorias de classificação (mantidas conforme solicitado)
@@ -71,6 +102,9 @@ class TraditionalNLPAnalyzer:
         except OSError:
             logger.warning("Modelo spaCy não encontrado. Usando modelo básico.")
             self.nlp = spacy.blank("pt")
+            # Garante segmentação de sentenças mesmo no modelo básico
+            if 'sentencizer' not in self.nlp.pipe_names:
+                self.nlp.add_pipe('sentencizer')
         
         try:
             # Configura stemmer RSLP
@@ -146,29 +180,28 @@ class TraditionalNLPAnalyzer:
         results = defaultdict(list)
         text_lower = text.lower()
         
-        for category, term_groups in self.sleep_terms.items():
-            for term, variations in term_groups.items():
-                for variation in variations:
-                    # Busca por variações do termo
-                    pattern = re.compile(rf'\b{re.escape(variation)}\b', re.IGNORECASE)
-                    matches = pattern.finditer(text_lower)
+        for category, terms in self.sleep_terms.items():
+            for term in terms:
+                # Captura o termo e possíveis flexões simples (sufixos alfanuméricos)
+                pattern = re.compile(rf'\b{re.escape(term)}\w*\b', re.IGNORECASE)
+                for match in pattern.finditer(text_lower):
+                    # Extrai contexto (100 caracteres antes e depois para contexto mais rico)
+                    start = max(0, match.start() - 100)
+                    end = min(len(text), match.end() + 100)
+                    context = text[start:end].strip()
                     
-                    for match in matches:
-                        # Extrai contexto (50 caracteres antes e depois)
-                        start = max(0, match.start() - 50)
-                        end = min(len(text), match.end() + 50)
-                        context = text[start:end].strip()
-                        
-                        # Identifica estrofe se possível
-                        stanza = self._extract_stanza_number(text, match.start())
-                        
-                        results[category].append({
-                            'term': variation,
-                            'context': context,
-                            'position': match.start(),
-                            'stanza': stanza,
-                            'category': category
-                        })
+                    # Identifica estrofe se possível
+                    stanza = self._extract_stanza_number(text, match.start())
+                    
+                    results[category].append({
+                        'term': match.group(0),
+                        'context': context,
+                        'text': context,  # Adiciona campo 'text' para compatibilidade
+                        'excerpt': context,  # Adiciona campo 'excerpt' para compatibilidade
+                        'position': match.start(),
+                        'stanza': stanza,
+                        'category': category
+                    })
         
         return dict(results)
     
@@ -212,9 +245,9 @@ class TraditionalNLPAnalyzer:
         # Identifica posições dos termos de sono
         sleep_positions = []
         for i, token in enumerate(tokens):
-            for category, term_groups in self.sleep_terms.items():
-                for term, variations in term_groups.items():
-                    if any(variation in token for variation in variations):
+            for category, terms in self.sleep_terms.items():
+                for term in terms:
+                    if token.startswith(term):
                         sleep_positions.append((i, token, category))
         
         # Calcula coocorrência
@@ -291,11 +324,26 @@ class TraditionalNLPAnalyzer:
             classification = self._classify_by_patterns(text, category)
             confidence = self._calculate_confidence(text, category)
             
-            context['classification'] = classification
-            context['confidence'] = confidence
-            context['reasoning'] = self._generate_reasoning(text, classification, confidence)
+            # Mapeia campos para o formato esperado pelo frontend
+            classified_context = {
+                'context_type': classification,
+                'classification': classification,  # Mantém compatibilidade
+                'confidence_score': confidence,
+                'confidence': confidence,  # Mantém compatibilidade
+                'sentence': context.get('context', ''),
+                'text': context.get('context', ''),  # Mantém compatibilidade
+                'excerpt': context.get('context', ''),  # Mantém compatibilidade
+                'stanza': context.get('stanza'),
+                'position': context.get('position'),
+                'terms': [{
+                    'term': context.get('term', ''),
+                    'category': category,
+                    'excerpt': context.get('context', '')
+                }],
+                'reasoning': self._generate_reasoning(text, classification, confidence)
+            }
             
-            classified_contexts.append(context)
+            classified_contexts.append(classified_context)
         
         return classified_contexts
     
@@ -417,7 +465,7 @@ class TraditionalNLPAnalyzer:
     
     def analyze_dream_patterns(self, text: str) -> Dict:
         """
-        Analisa padrões de sonhos no texto usando técnicas tradicionais.
+        Analisa padrões de sonhos no texto usando técnicas tradicionais (modo completo).
         
         Args:
             text: Texto para analisar
@@ -449,6 +497,112 @@ class TraditionalNLPAnalyzer:
             'total_contexts': len(classified_contexts),
             'categories_found': list(sleep_terms.keys())
         }
+    
+    def analyze_dream_patterns_strict(self, text: str) -> Dict:
+        """
+        Analisa padrões de sonhos no texto usando modo estrito (apenas termos muito específicos).
+        
+        Args:
+            text: Texto para analisar
+            
+        Returns:
+            Dicionário com padrões identificados
+        """
+        # Termos muito específicos para modo estrito
+        strict_terms = {
+            'onírico': [
+                'sonho', 'sonhos', 'sonhar', 'sonhando', 'sonhava', 'sonhei', 'sonharia',
+                'pesadelo', 'pesadelos', 'pesadelar', 'pesadelando', 'pesadelava',
+                'dormir', 'dormindo', 'dormia', 'dormiu', 'adormecer', 'adormecendo', 'adormecia',
+                'despertar', 'despertando', 'despertava', 'despertou',
+                'repouso', 'repousar', 'repousando', 'repousava',
+                'descanso', 'descansar', 'descansando', 'descansava',
+                'sonolência', 'sonolento', 'soneca', 'sonecar'
+            ],
+            'profético': [
+                'visão', 'visões', 'profecia', 'profécias', 'profetizar', 'profetizando',
+                'revelação', 'revelações', 'revelar', 'revelando', 'revelava',
+                'aparição', 'aparições', 'aparecer', 'aparecendo', 'aparecia',
+                'vaticínio', 'vaticínios', 'vaticinar', 'vaticinando', 'vaticinava',
+                'presságio', 'presságios', 'pressagiar', 'pressagiando', 'pressagiava'
+            ],
+            'alegórico': [
+                'sombra', 'sombras', 'fantasia', 'fantasias', 'ilusão', 'ilusões',
+                'metáfora', 'metáforas', 'símbolo', 'símbolos', 'alegoria', 'alegorias'
+            ],
+            'divino': [
+                'glória', 'glorioso', 'divino', 'divinos', 'celestial', 'celestiais',
+                'milagre', 'milagres', 'milagroso', 'sagrado', 'sagrados', 'santo', 'santos'
+            ],
+            'ilusório': [
+                'ilusão', 'ilusões', 'quimera', 'quimeras', 'miragem', 'miragens',
+                'falsa', 'falso', 'falsos', 'falsas'
+            ]
+        }
+        
+        # Extrai apenas termos estritos
+        sleep_terms = self._extract_terms_with_list(text, strict_terms)
+        
+        # Analisa coocorrência
+        cooccurrence = self.analyze_cooccurrence(text)
+        
+        # Calcula similaridade semântica
+        similarity = self.calculate_semantic_similarity(text)
+        
+        # Classifica contextos
+        all_contexts = []
+        for category, contexts in sleep_terms.items():
+            all_contexts.extend(contexts)
+        
+        classified_contexts = self.classify_dream_contexts(all_contexts)
+        
+        return {
+            'sleep_terms': sleep_terms,
+            'cooccurrence': cooccurrence,
+            'similarity': similarity,
+            'classified_contexts': classified_contexts,
+            'total_contexts': len(classified_contexts),
+            'categories_found': list(sleep_terms.keys())
+        }
+    
+    def _extract_terms_with_list(self, text: str, terms_dict: Dict[str, List[str]]) -> Dict[str, List[Dict]]:
+        """
+        Extrai termos usando uma lista específica de termos.
+        
+        Args:
+            text: Texto para analisar
+            terms_dict: Dicionário com termos por categoria
+            
+        Returns:
+            Dicionário com termos encontrados
+        """
+        results = defaultdict(list)
+        text_lower = text.lower()
+        
+        for category, terms in terms_dict.items():
+            for term in terms:
+                # Captura o termo exato e possíveis flexões
+                pattern = re.compile(rf'\b{re.escape(term)}\w*\b', re.IGNORECASE)
+                for match in pattern.finditer(text_lower):
+                    # Extrai contexto (100 caracteres antes e depois)
+                    start = max(0, match.start() - 100)
+                    end = min(len(text), match.end() + 100)
+                    context = text[start:end].strip()
+                    
+                    # Identifica estrofe se possível
+                    stanza = self._extract_stanza_number(text, match.start())
+                    
+                    results[category].append({
+                        'term': match.group(0),
+                        'context': context,
+                        'text': context,
+                        'excerpt': context,
+                        'position': match.start(),
+                        'stanza': stanza,
+                        'category': category
+                    })
+        
+        return dict(results)
 
 def create_traditional_analyzer() -> TraditionalNLPAnalyzer:
     """Cria instância do analisador NLP tradicional."""
